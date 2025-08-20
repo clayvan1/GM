@@ -1,0 +1,36 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables
+.env
+
+# Flask-Migrate / Alembic files
+migrations/__pycache__/
+migrations/*.pyc
+migrations/*.pyo
+
+# SQLite database (if ever used)
+*.db
+*.sqlite3
+
+# Logs
+*.log
+
+# IDE / editor configs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
