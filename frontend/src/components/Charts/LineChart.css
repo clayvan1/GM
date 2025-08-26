@@ -1,0 +1,83 @@
+/* === Shared Chart Styles === */
+.chart-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* === SparkLine === */
+.sparkline-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.sparkline-tooltip {
+  background: var(--tooltip-bg, rgba(0, 0, 0, 0.75));
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+/* === LineChart === */
+.line-chart-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* === StackedChart === */
+.stacked-chart-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* === Donut & Pie Chart === */
+.donut-chart-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* === Recharts Theme Styling === */
+.recharts-cartesian-grid .recharts-cartesian-grid-line {
+  stroke: var(--grid-color);
+}
+
+.recharts-axis path,
+.recharts-axis line {
+  stroke: var(--axis-color);
+}
+
+.recharts-axis text {
+  fill: var(--axis-color);
+}
+
+.recharts-tooltip-wrapper {
+  background: var(--tooltip-bg);
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 0.9rem;
+}
+
+.recharts-pie-label {
+  font-size: 0.8rem;
+  fill: var(--legend-color, #333);
+}
+
+.react-sparklines-tooltip {
+  background: var(--tooltip-bg, rgba(0, 0, 0, 0.75));
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}

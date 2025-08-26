@@ -1,0 +1,161 @@
+/* src/pages/EmployeeJointsPage.css */
+
+.employee-container {
+  padding: 20px;
+  width: 80vw;
+  height: 100vh;
+  margin: 0 auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+}
+
+h1 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+  text-align: center;
+}
+
+/* --- Summary Cards --- */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+.card h3 {
+  font-size: 1rem;
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.card p {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+/* --- Table Wrapper with Horizontal Scroll --- */
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  margin-top: 20px;
+}
+
+.table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: #bbb;
+  border-radius: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+
+/* --- Employee Table --- */
+.employee-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px; /* prevents cramping */
+}
+
+.employee-table th,
+.employee-table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.employee-table th {
+  background-color: #f4f6f8;
+  color: #333;
+  font-weight: 600;
+}
+
+.employee-table tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+/* --- Input Styling --- */
+.input-cell {
+  width: 80px;
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.input-cell:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 4px rgba(74, 144, 226, 0.4);
+}
+
+/* --- Buttons --- */
+.sell-btn,
+.debt-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s ease-in-out;
+}
+
+.sell-btn {
+  background-color: #4caf50;
+  color: #fff;
+}
+
+.sell-btn:hover {
+  background-color: #3d8b40;
+}
+
+.debt-btn {
+  background-color: #e74c3c;
+  color: #fff;
+}
+
+.debt-btn:hover {
+  background-color: #c0392b;
+}
+
+/* --- Responsive Fixes --- */
+@media (max-width: 768px) {
+  .card p {
+    font-size: 1rem;
+  }
+
+  .input-cell {
+    width: 65px;
+  }
+
+  .sell-btn,
+  .debt-btn {
+    padding: 5px 8px;
+    font-size: 0.8rem;
+  }
+}

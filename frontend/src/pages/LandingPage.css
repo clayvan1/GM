@@ -1,0 +1,126 @@
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  font-family: 'Arial', sans-serif;
+}
+
+.landing-container {
+  
+  width: 100%;
+  height: 100vh;           /* Full viewport height */
+  display: flex;
+  justify-content: center;  /* Horizontal center */
+  align-items: center;      /* Vertical center */
+  text-align: center;
+  overflow: hidden;
+  overflow-y: hidden;
+  
+}
+
+/* Prism Background fills whole container */
+.prism-background {
+  position: fixed;       /* stays behind content */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -10000;
+}
+
+/* Navbar */
+.navbar {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbar-content {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  align-items: center;
+}
+
+.navbar-content nav a {
+  margin-right: 10px;
+  text-decoration: none;
+  color: #fff;
+  font-weight: 500;
+}
+h2{
+    color: #fff;
+    font-size: 1.5rem;
+    margin-left: 10px;
+}
+/* Landing content */
+.landing-content {
+  position: relative;
+  z-index: 10;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0 15px;
+  margin-left: 20px;
+  
+}
+
+.landing-content h1 {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.landing-content p {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  max-width: 600px;
+}
+
+.get-started-btn {
+  padding: 18px 40px;
+  font-size: 1.3rem;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.get-started-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .landing-content h1 { font-size: 3rem; }
+  .landing-content p { font-size: 1.2rem; }
+  .get-started-btn { padding: 15px 30px; font-size: 1.1rem; }
+}
+
+@media (max-width: 768px) {
+  .landing-content h1 { font-size: 1.5rem; }
+  .landing-content p { font-size: 1rem; }
+  .get-started-btn { padding: 12px 25px; font-size: 1rem; }
+}
+
+@media (max-width: 480px) {
+  .landing-content h1 { font-size: 2rem; }
+  .landing-content p { font-size: 0.7rem; }
+  .get-started-btn { padding: 10px 20px; font-size: 0.9rem; }
+}
+.custom-class{
+  top: 50px;
+}

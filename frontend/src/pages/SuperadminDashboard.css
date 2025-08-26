@@ -1,0 +1,88 @@
+.dashboard-grid-container {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 0.5rem;
+  
+  color: black;
+}
+.dash{
+    width: 100vw;
+    height: 100vh;
+     padding-top: 100px;
+    
+}
+/* Column layout */
+.left-col,
+.center-col,
+.right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Card base style */
+.dashboard-card {
+  background-color: white;
+  
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  height: 100%;
+}
+
+/* Trending & Donut height */
+.left-col > .dashboard-card:first-child,
+.right-col > .dashboard-card:first-child {
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* SparkLine card (under trending) */
+.left-col > .dashboard-card:last-child {
+  height: 350px;
+  justify-content: center;
+}
+
+/* Summary Cards Grid */
+.summary-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.summary-card {
+  height: 140px; /* Shorter than donut/trending */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Line Chart aligned below summary */
+.line-chart-card {
+  height: 400px;
+  width: 100%;
+  
+}
+
+/* Stacked Chart (under donut) */
+.stacked-chart-card {
+  height: 400px;
+  padding-top: 1rem;
+}
+@media (max-width: 1024px) {
+  .dashboard-grid-container {
+    grid-template-columns: 1fr; /* Stack Left, Center, Right */
+  }
+}
+/* Stack summary cards vertically on smallest screens */
+.realtime-graph {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  
+  
+}
+h3{
+  color: white;
+}

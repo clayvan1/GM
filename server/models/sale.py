@@ -12,6 +12,7 @@ class Sale(db.Model, SerializerMixin):
     sale_type = db.Column(db.String(20), nullable=False)  # "grams" or "joints"
     total_price = db.Column(db.Float, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    sold_by = db.Column(db.String(50), nullable=True)
 
     # prevent recursion (avoid inventory → sales → inventory loop)
     serialize_rules = ("-inventory.sales",)
