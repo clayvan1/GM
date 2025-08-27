@@ -53,7 +53,6 @@ def create_app():
         raise RuntimeError("❌ DATABASE_URL or MIGRATION_URL must be set in .env")
 
     db_url = normalize_db_url(raw_url)
-
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -65,14 +64,18 @@ def create_app():
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
     jwt = JWTManager(app)
 
-    # --- Redis Cache Config ---
-    app.config["CACHE_TYPE"] = "RedisCache"
-    app.config["CACHE_REDIS_URL"] = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    # --- Cache Config (Redis if available, fallback to SimpleCache) ---
+    if os.getenv("REDIS_URL"):
+        app.config["CACHE_TYPE"] = "RedisCache"
+        app.config["CACHE_REDIS_URL"] = os.getenv("REDIS_URL")
+    else:
+        app.config["CACHE_TYPE"] = "SimpleCache"  # fallback for local/dev
     cache.init_app(app)
 
     # --- Init extensions ---
     db.init_app(app)
     Migrate(app, db)
+    bcrypt.init_app(app)  # ✅ added
 
     # --- Enable global CORS ---
     CORS(app, resources={r"/api/*": {"origins": os.getenv("CORS_ORIGINS", "*")}})
@@ -84,6 +87,8 @@ def create_app():
     app.register_blueprint(sale_bp, url_prefix="/api/sales")
     app.register_blueprint(debt_bp, url_prefix="/api/debts")
 
+    # --- Health Check Route (for Render) ---
+   
     # --- Logging Config ---
     logging.basicConfig(
         level=logging.INFO,
