@@ -16,7 +16,7 @@ services:
       - key: REDIS_URL
         sync: false   # optional, if you add Redis service
       - key: CORS_ORIGINS
-        value: "https://gm-frontend.onrender.com"  # update with your frontend URL
+        value: "https://gm-2.onrender.com"  # update with your frontend URL
 
   # --- Frontend (React/Vite) ---
   - type: web
