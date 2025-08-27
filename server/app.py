@@ -1,4 +1,3 @@
-# app.py
 import os
 import re
 import logging
@@ -74,9 +73,8 @@ def create_app():
     # --- Init extensions ---
     db.init_app(app)
     Migrate(app, db)
-    # bcrypt already initialized in extension.py
 
-    # --- Enable global CORS (restrict in prod if needed) ---
+    # --- Enable global CORS ---
     CORS(app, resources={r"/api/*": {"origins": os.getenv("CORS_ORIGINS", "*")}})
 
     # --- Register Blueprints ---
@@ -97,7 +95,3 @@ def create_app():
 
 # Entry point for WSGI servers (Gunicorn, uWSGI, etc.)
 app = create_app()
-
-if __name__ == "__main__":
-    # Development only
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
