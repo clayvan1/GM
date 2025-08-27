@@ -1,35 +1,23 @@
 from flask import Blueprint, request, current_app
 from flask_restful import Api, Resource
-from extension import db
+from extension import db, bcrypt
 from models.user import User
-from extension import bcrypt
 
 # Create a Blueprint
 user_bp = Blueprint("user", __name__)
 user_api = Api(user_bp)  # Attach RESTful API to Blueprint
 
-# --- Helpers ---
-def invalidate_user_cache():
-    cache = current_app.cache
-    cache.delete("all_users")
-
+# --- Resources ---
 class UserList(Resource):
     def get(self):
-        cache = current_app.cache
-        cached_data = cache.get("all_users")
-        if cached_data:
-            return {"users": cached_data, "cached": True}, 200
-
         try:
             users = User.query.all()
             data = [u.to_dict() for u in users]
-            cache.set("all_users", data)
-            return {"users": data, "cached": False}, 200
+            return {"users": data}, 200
         except Exception as e:
             current_app.logger.error(f"Failed to fetch users: {str(e)}")
             return {"error": f"Failed to fetch users: {str(e)}"}, 500
 
-# --- Resources ---
 class Signup(Resource):
     def post(self):
         data = request.get_json()
@@ -40,24 +28,20 @@ class Signup(Resource):
         if not username or not email or not password:
             return {"error": "All fields required"}, 400
 
-        if User.query.filter_by(email=email).first():
-            return {"error": "Email already exists"}, 400
-
         try:
-            # Check if this is the first user
+            if User.query.filter_by(email=email).first():
+                return {"error": "Email already exists"}, 400
+
             is_first_user = User.query.count() == 0
-            role = "superadmin" if is_first_user else "employee"
+            role = "superadmin" if is_first_user else None
 
             hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
             user = User(username=username, email=email, password=hashed_password, role=role)
             db.session.add(user)
             db.session.commit()
 
-            # Invalidate user cache after signup
-            invalidate_user_cache()
-
             return {
-                "message": f"User created{' as superadmin' if is_first_user else ''}",
+                "message": f"User created{' as superadmin' if is_first_user else ' with no role assigned'}.",
                 "user": user.to_dict()
             }, 201
         except Exception as e:
@@ -100,10 +84,6 @@ class UpdateUserRole(Resource):
         try:
             user.role = new_role
             db.session.commit()
-
-            # Invalidate cache after role update
-            invalidate_user_cache()
-
             return {"message": f"User role updated to {new_role}", "user": user.to_dict()}, 200
         except Exception as e:
             db.session.rollback()

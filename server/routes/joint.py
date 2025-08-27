@@ -1,4 +1,4 @@
-from flask import Blueprint, request, current_app
+from flask import Blueprint, request
 from flask_restful import Api, Resource
 from extension import db
 from models.joint import Joint
@@ -9,26 +9,11 @@ from datetime import datetime
 joint_bp = Blueprint("joint", __name__)
 joint_api = Api(joint_bp)
 
-# --- Helper to invalidate cache ---
-def invalidate_joint_cache(joint_id=None, employee_id=None):
-    cache = current_app.cache
-    cache.delete("all_joints")  # cache for all joints
-    if joint_id:
-        cache.delete(f"joint_{joint_id}")
-    if employee_id:
-        cache.delete(f"employee_joints_{employee_id}")
-
 class JointListCreate(Resource):
     def get(self):
-        cache = current_app.cache
-        cached_data = cache.get("all_joints")
-        if cached_data:
-            return {"joints": cached_data, "cached": True}, 200
-
         joints = Joint.query.all()
         data = [j.to_dict() for j in joints]
-        cache.set("all_joints", data)
-        return {"joints": data, "cached": False}, 200
+        return {"joints": data}, 200
 
     def post(self):
         data = request.get_json()
@@ -46,7 +31,6 @@ class JointListCreate(Resource):
             if inventory.grams_available < grams_to_use:
                 return {"error": "Not enough grams in inventory"}, 400
 
-            # Deduct grams from inventory
             inventory.grams_available -= grams_to_use
 
             joint = Joint(
@@ -61,9 +45,6 @@ class JointListCreate(Resource):
             db.session.add(joint)
             db.session.commit()
 
-            # Invalidate cache
-            invalidate_joint_cache(joint_id=joint.id, employee_id=joint.assigned_to)
-
             return {"message": "Joint created", "joint": joint.to_dict()}, 201
 
         except Exception as e:
@@ -73,19 +54,10 @@ class JointListCreate(Resource):
 
 class JointDetail(Resource):
     def get(self, joint_id):
-        cache = current_app.cache
-        cache_key = f"joint_{joint_id}"
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return {"joint": cached_data, "cached": True}, 200
-
         joint = Joint.query.get(joint_id)
         if not joint:
             return {"error": "Joint not found"}, 404
-
-        data = joint.to_dict()
-        cache.set(cache_key, data)
-        return {"joint": data, "cached": False}, 200
+        return {"joint": joint.to_dict()}, 200
 
     def put(self, joint_id):
         joint = Joint.query.get(joint_id)
@@ -94,7 +66,6 @@ class JointDetail(Resource):
 
         data = request.get_json()
         try:
-            # Selling joints
             sold_qty = int(data.get("sold_qty", 0))
             sold_price = float(data.get("sold_price", 0.0))
             sold_by = str(data.get("sold_by", ""))
@@ -112,17 +83,10 @@ class JointDetail(Resource):
                 )
                 db.session.add(sale)
 
-            # Update assigned employee if provided
-            old_employee = joint.assigned_to
             if "assigned_to" in data:
                 joint.assigned_to = str(data["assigned_to"]) if data["assigned_to"] else None
 
             db.session.commit()
-
-            # Invalidate cache
-            invalidate_joint_cache(joint_id=joint.id, employee_id=old_employee)
-            invalidate_joint_cache(employee_id=joint.assigned_to)
-
             return {"message": "Joint updated", "joint": joint.to_dict()}, 200
 
         except Exception as e:
@@ -135,13 +99,8 @@ class JointDetail(Resource):
             return {"error": "Joint not found"}, 404
 
         try:
-            employee_id = joint.assigned_to
             db.session.delete(joint)
             db.session.commit()
-
-            # Invalidate cache
-            invalidate_joint_cache(joint_id=joint.id, employee_id=employee_id)
-
             return {"message": "Joint deleted"}, 200
         except Exception as e:
             db.session.rollback()
@@ -150,16 +109,9 @@ class JointDetail(Resource):
 
 class JointsByEmployee(Resource):
     def get(self, employee_id):
-        cache = current_app.cache
-        cache_key = f"employee_joints_{employee_id}"
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return {"joints": cached_data, "cached": True}, 200
-
         joints = Joint.query.filter_by(assigned_to=str(employee_id)).all()
         data = [j.to_dict() for j in joints]
-        cache.set(cache_key, data)
-        return {"joints": data, "cached": False}, 200
+        return {"joints": data}, 200
 
 
 # Register resources

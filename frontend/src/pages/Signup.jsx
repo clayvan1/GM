@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import GlassSurface from "../components/Landing/GlassSurface";
 import { useAuth } from "../context/AuthContext";
 import "./Login.css";
+import { Link } from 'react-router-dom';
 
 const SignupPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -75,7 +76,7 @@ const SignupPage = () => {
           {message && <p className="signup-message">{message}</p>}
 
           <p className="signup-text">
-            Already have an account? <a href="/login">Login</a>
+            Already have an account? <Link to="/login">Login</Link>
           </p>
         </div>
       </GlassSurface>

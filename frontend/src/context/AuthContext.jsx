@@ -37,7 +37,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const handleSignup = async (username, email, password) => {
-    return await signup({ username, email, password });
+    // FIX: Await and return the response from the signup service.
+    const data = await signup({ username, email, password });
+    return data;
   };
 
   const logout = () => {

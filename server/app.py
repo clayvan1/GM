@@ -1,5 +1,4 @@
 import os
-import re
 import logging
 from datetime import timedelta
 
@@ -7,7 +6,6 @@ from flask import Flask, jsonify
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
-from flask_caching import Cache
 from dotenv import load_dotenv
 
 from extension import db, bcrypt
@@ -28,9 +26,6 @@ from routes.inventory import inventory_bp
 from routes.joint import joint_bp
 from routes.sale import sale_bp
 from routes.debt import debt_bp
-
-# Cache instance
-cache = Cache()
 
 
 def normalize_db_url(url: str) -> str:
@@ -55,6 +50,12 @@ def create_app():
     db_url = normalize_db_url(raw_url)
     app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    
+    # --- SQLAlchemy Connection Pooling Options ---
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 3600
+    }
 
     # --- Security / Secrets ---
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", os.urandom(24))
@@ -63,14 +64,6 @@ def create_app():
     app.config["JWT_SECRET_KEY"] = app.config["SECRET_KEY"]
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
     JWTManager(app)
-
-    # --- Cache Config (Redis if available, fallback to SimpleCache) ---
-    if os.getenv("REDIS_URL"):
-        app.config["CACHE_TYPE"] = "RedisCache"
-        app.config["CACHE_REDIS_URL"] = os.getenv("REDIS_URL")
-    else:
-        app.config["CACHE_TYPE"] = "SimpleCache"  # fallback for local/dev
-    cache.init_app(app)
 
     # --- Init extensions ---
     db.init_app(app)

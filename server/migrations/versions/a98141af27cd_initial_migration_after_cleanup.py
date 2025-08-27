@@ -1,8 +1,8 @@
-"""Initial migration
+"""Initial migration after cleanup
 
-Revision ID: f5102cc4459e
+Revision ID: a98141af27cd
 Revises: 
-Create Date: 2025-08-20 12:20:11.850187
+Create Date: 2025-08-27 07:13:58.764661
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'f5102cc4459e'
+revision = 'a98141af27cd'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -23,7 +23,10 @@ def upgrade():
     sa.Column('strain_name', sa.String(length=100), nullable=False),
     sa.Column('grams_available', sa.Float(), nullable=True),
     sa.Column('price_per_gram', sa.Float(), nullable=False),
+    sa.Column('buying_price', sa.Float(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('ended_at', sa.DateTime(), nullable=True),
+    sa.Column('sold_price', sa.Float(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('users',
@@ -54,6 +57,9 @@ def upgrade():
     sa.Column('joints_count', sa.Integer(), nullable=False),
     sa.Column('price_per_joint', sa.Float(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('ended_at', sa.DateTime(), nullable=True),
+    sa.Column('assigned_to', sa.String(length=100), nullable=True),
+    sa.Column('sold_price', sa.Float(), nullable=True),
     sa.ForeignKeyConstraint(['inventory_id'], ['inventory.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -64,6 +70,7 @@ def upgrade():
     sa.Column('sale_type', sa.String(length=20), nullable=False),
     sa.Column('total_price', sa.Float(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('sold_by', sa.String(length=50), nullable=True),
     sa.ForeignKeyConstraint(['inventory_id'], ['inventory.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
