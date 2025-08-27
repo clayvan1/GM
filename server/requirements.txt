@@ -26,7 +26,8 @@ pytz==2024.2
 redis==6.4.0
 setuptools==70.3.0
 six==1.17.0
-SQLAlchemy==2.0.29
+SQLAlchemy==1.4.48
+
 sqlalchemy-serializer==1.4.22
 typing_extensions==4.14.1
 Werkzeug==3.1.3
