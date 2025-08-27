@@ -6,6 +6,7 @@ import { getInventories, createInventory, updateInventory } from "../Service/Inv
 
 const InventoryManager = () => {
   const [inventories, setInventories] = useState([]);
+  const [filteredInventories, setFilteredInventories] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     strain_name: "",
@@ -18,12 +19,20 @@ const InventoryManager = () => {
   const itemsPerPage = 5;
   const [loading, setLoading] = useState(true);
 
+  // --- Filters/Search ---
+  const [searchStrain, setSearchStrain] = useState("");
+  const [minGrams, setMinGrams] = useState("");
+  const [maxGrams, setMaxGrams] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+
   // Fetch inventories from server
   const fetchInventories = async () => {
     try {
       setLoading(true);
       const inventoriesData = await getInventories();
       setInventories(inventoriesData);
+      setFilteredInventories(inventoriesData);
     } catch (err) {
       console.error("Error fetching inventories:", err);
     } finally {
@@ -35,11 +44,37 @@ const InventoryManager = () => {
     fetchInventories();
   }, []);
 
+  // Apply filters whenever search/filter inputs change
+  useEffect(() => {
+    let filtered = [...inventories];
+
+    if (searchStrain) {
+      filtered = filtered.filter((inv) =>
+        inv.strain_name.toLowerCase().includes(searchStrain.toLowerCase())
+      );
+    }
+    if (minGrams) {
+      filtered = filtered.filter((inv) => inv.grams_available >= Number(minGrams));
+    }
+    if (maxGrams) {
+      filtered = filtered.filter((inv) => inv.grams_available <= Number(maxGrams));
+    }
+    if (minPrice) {
+      filtered = filtered.filter((inv) => inv.price_per_gram >= Number(minPrice));
+    }
+    if (maxPrice) {
+      filtered = filtered.filter((inv) => inv.price_per_gram <= Number(maxPrice));
+    }
+
+    setFilteredInventories(filtered);
+    setCurrentPage(1); // Reset page when filtering
+  }, [searchStrain, minGrams, maxGrams, minPrice, maxPrice, inventories]);
+
   // Pagination logic
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
-  const currentInventories = inventories.slice(indexOfFirst, indexOfLast);
-  const totalPages = Math.ceil(inventories.length / itemsPerPage);
+  const currentInventories = filteredInventories.slice(indexOfFirst, indexOfLast);
+  const totalPages = Math.ceil(filteredInventories.length / itemsPerPage);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -56,7 +91,6 @@ const InventoryManager = () => {
     const soldAmount = Number(soldInputs[id]?.grams || 0);
     const soldPrice = Number(soldInputs[id]?.soldPrice || 0);
 
-    // Prevent sending if grams sold is zero or less
     if (soldAmount <= 0) return;
 
     try {
@@ -108,6 +142,40 @@ const InventoryManager = () => {
         </button>
       </header>
 
+      {/* Search and Filters */}
+      <div className="inventory-filters">
+        <input
+          type="text"
+          placeholder="Search by strain"
+          value={searchStrain}
+          onChange={(e) => setSearchStrain(e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="Min grams"
+          value={minGrams}
+          onChange={(e) => setMinGrams(e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="Max grams"
+          value={maxGrams}
+          onChange={(e) => setMaxGrams(e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="Min price"
+          value={minPrice}
+          onChange={(e) => setMinPrice(e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="Max price"
+          value={maxPrice}
+          onChange={(e) => setMaxPrice(e.target.value)}
+        />
+      </div>
+
       <div className="table-wrapper">
         <table className="inventory-table">
           <thead>
@@ -156,14 +224,14 @@ const InventoryManager = () => {
                     style={{ width: "80px", marginRight: "8px" }}
                   />
                   <button
-                    className="btn btn-secondary"
+                    className=" btn-secondary"
                     onClick={() => updateGramsSoldHandler(inv.id)}
-                    disabled={Number(soldInputs[inv.id]?.grams || 0) <= 0} // Disable if grams <= 0
+                    disabled={Number(soldInputs[inv.id]?.grams || 0) <= 0}
                   >
                     Update
                   </button>
                 </td>
-                <td data-label="Actions">
+                <td data-label="btn-secondary">
                   <Link to={`/superadmin/inventory/${inv.id}`} className="btn-secondary">
                     Manage Joints
                   </Link>

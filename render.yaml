@@ -1,0 +1,30 @@
+services:
+  # --- Flask Backend ---
+  - type: web
+    name: gm-backend
+    env: python
+    rootDir: server
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+    startCommand: gunicorn -w 4 -b 0.0.0.0:$PORT app:app
+    envVars:
+      - key: DATABASE_URL
+        sync: false   # set in Render dashboard with Supabase direct URL
+      - key: SECRET_KEY
+        generateValue: true
+      - key: REDIS_URL
+        sync: false   # optional, if you add Redis service
+      - key: CORS_ORIGINS
+        value: "https://gm-frontend.onrender.com"  # change after frontend deploy
+
+  # --- Frontend (React/Vite) ---
+  - type: web
+    name: gm-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://gm-backend.onrender.com/api

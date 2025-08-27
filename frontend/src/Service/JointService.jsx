@@ -1,126 +1,109 @@
 // src/services/JointService.jsx
-import axios from "axios";
 import localforage from "localforage";
 
-const API_BASE = import.meta.env.VITE_API_BASE + "/api/joints";
+// LocalForage instance for joints
+const jointCache = localforage.createInstance({ name: "jointCache" });
 
-// LocalForage instance for offline queue
-const offlineQueue = localforage.createInstance({ name: "jointQueue" });
-
-// --- Offline Queue Helpers ---
-const queueUpdate = async (update) => {
-  const queued = (await offlineQueue.getItem("updates")) || [];
-  queued.push(update);
-  await offlineQueue.setItem("updates", queued);
-};
-
-export const syncOfflineChanges = async () => {
-  const queued = (await offlineQueue.getItem("updates")) || [];
-  if (!queued.length) return;
-
-  console.log("Syncing offline joint changes:", queued);
-
-  for (let item of queued) {
-    try {
-      if (item.type === "update") {
-        await axios.put(`${API_BASE}/${item.id}`, item.payload);
-      } else if (item.type === "create") {
-        await axios.post(`${API_BASE}/`, item.payload);
-      } else if (item.type === "delete") {
-        await axios.delete(`${API_BASE}/${item.id}`);
-      } else if (item.type === "assign") {
-        await axios.put(`${API_BASE}/${item.id}/assign`, item.payload);
-      }
-    } catch (err) {
-      console.error("Failed syncing item:", item, err);
-      return; // stop on first failure
-    }
-  }
-
-  await offlineQueue.setItem("updates", []); // clear queue after sync
-};
-
-// --- Joint API Calls ---
-
-// Fetch all joints
+// --- Fetch all joints ---
 export const getJoints = async () => {
-  try {
-    const res = await axios.get(`${API_BASE}/`);
-    return res.data.joints || [];
-  } catch (err) {
-    console.error("Error fetching joints:", err);
-    return [];
-  }
+  const cached = await jointCache.getItem("allJoints");
+  return cached || [];
 };
 
-// Create a new joint
-export const createJoint = async (payload) => {
-  try {
-    if (!navigator.onLine) {
-      await queueUpdate({ type: "create", payload });
-      return { message: "Create queued (offline)", joint: payload };
-    }
-    const res = await axios.post(`${API_BASE}/`, payload);
-    return res.data;
-  } catch (err) {
-    console.error("Error creating joint:", err);
-    throw err;
-  }
-};
-
-// Update a joint
-export const updateJoint = async (id, payload) => {
-  try {
-    if (!navigator.onLine) {
-      await queueUpdate({ type: "update", id, payload });
-      return { message: "Update queued (offline)", joint: { id, ...payload } };
-    }
-    const res = await axios.put(`${API_BASE}/${id}`, payload);
-    return res.data;
-  } catch (err) {
-    console.error(`Error updating joint ${id}:`, err);
-    throw err;
-  }
-};
-
-// Delete a joint
-export const deleteJoint = async (id) => {
-  try {
-    if (!navigator.onLine) {
-      await queueUpdate({ type: "delete", id });
-      return { message: "Delete queued (offline)", id };
-    }
-    const res = await axios.delete(`${API_BASE}/${id}`);
-    return res.data;
-  } catch (err) {
-    console.error(`Error deleting joint ${id}:`, err);
-    throw err;
-  }
-};
-
-// Assign a joint to an employee
-export const assignJoint = async (id, userId) => {
-  const payload = { user_id: userId };
-  try {
-    if (!navigator.onLine) {
-      await queueUpdate({ type: "assign", id, payload });
-      return { message: "Assign queued (offline)", joint: { id, userId } };
-    }
-    const res = await axios.put(`${API_BASE}/${id}/assign`, payload);
-    return res.data;
-  } catch (err) {
-    console.error(`Error assigning joint ${id}:`, err);
-    throw err;
-  }
-};
-
-// Fetch joints assigned to a specific employee
+// --- Fetch joints assigned to a specific employee ---
 export const getJointsByEmployee = async (employeeId) => {
-  try {
-    const res = await axios.get(`${API_BASE}/employee/${employeeId}`);
-    return res.data.joints || [];
-  } catch (err) {
-    console.error(`Error fetching joints for employee ${employeeId}:`, err);
-    return [];
+  const cacheKey = `employee_${employeeId}`;
+  const cached = await jointCache.getItem(cacheKey);
+  return cached || [];
+};
+
+// --- Create joint locally ---
+export const createJoint = async (joint) => {
+  const allJoints = (await jointCache.getItem("allJoints")) || [];
+  const newJoint = { id: Date.now(), ...joint }; // generate temporary id
+  allJoints.push(newJoint);
+  await jointCache.setItem("allJoints", allJoints);
+
+  // Update per-employee cache if assigned
+  if (joint.userId) {
+    const key = `employee_${joint.userId}`;
+    const empJoints = (await jointCache.getItem(key)) || [];
+    empJoints.push(newJoint);
+    await jointCache.setItem(key, empJoints);
+  }
+
+  return newJoint;
+};
+
+// --- Update joint locally ---
+export const updateJoint = async (id, payload) => {
+  let allJoints = (await jointCache.getItem("allJoints")) || [];
+  allJoints = allJoints.map(j => (j.id === id ? { ...j, ...payload } : j));
+  await jointCache.setItem("allJoints", allJoints);
+
+  // Update per-employee cache if assigned
+  if (payload.userId) {
+    const key = `employee_${payload.userId}`;
+    let empJoints = (await jointCache.getItem(key)) || [];
+    empJoints = empJoints.map(j => (j.id === id ? { ...j, ...payload } : j));
+    await jointCache.setItem(key, empJoints);
+  }
+
+  return allJoints.find(j => j.id === id);
+};
+
+// --- Delete joint locally ---
+export const deleteJoint = async (id) => {
+  let allJoints = (await jointCache.getItem("allJoints")) || [];
+  const jointToDelete = allJoints.find(j => j.id === id);
+  allJoints = allJoints.filter(j => j.id !== id);
+  await jointCache.setItem("allJoints", allJoints);
+
+  // Remove from employee cache if assigned
+  if (jointToDelete?.userId) {
+    const key = `employee_${jointToDelete.userId}`;
+    let empJoints = (await jointCache.getItem(key)) || [];
+    empJoints = empJoints.filter(j => j.id !== id);
+    await jointCache.setItem(key, empJoints);
+  }
+
+  return { success: true, deletedId: id };
+};
+
+// --- Assign joint to employee locally ---
+export const assignJoint = async (id, userId) => {
+  let allJoints = (await jointCache.getItem("allJoints")) || [];
+  const joint = allJoints.find(j => j.id === id);
+  if (!joint) return null;
+
+  joint.userId = userId;
+  await jointCache.setItem("allJoints", allJoints);
+
+  // Add to employee cache
+  const key = `employee_${userId}`;
+  const empJoints = (await jointCache.getItem(key)) || [];
+  if (!empJoints.find(j => j.id === id)) {
+    empJoints.push(joint);
+    await jointCache.setItem(key, empJoints);
+  }
+
+  return joint;
+};
+
+// --- Initialize cache manually ---
+export const initializeCache = async (joints) => {
+  await jointCache.setItem("allJoints", joints || []);
+
+  // Build per-employee cache
+  const employeeMap = {};
+  (joints || []).forEach(j => {
+    if (j.userId) {
+      if (!employeeMap[j.userId]) employeeMap[j.userId] = [];
+      employeeMap[j.userId].push(j);
+    }
+  });
+
+  for (const [userId, empJoints] of Object.entries(employeeMap)) {
+    await jointCache.setItem(`employee_${userId}`, empJoints);
   }
 };

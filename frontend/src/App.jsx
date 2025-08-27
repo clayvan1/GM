@@ -42,6 +42,7 @@ function App() {
           >
             {/* Default dashboard page */}
             <Route index element={<EmployeeJointsPage />} />
+            <Route path="Home" element={<EmployeeJointsPage />} />
 
             {/* Add sub-pages inside employee layout */}
             <Route path="profile" element={<h2>Employee Profile</h2>} />

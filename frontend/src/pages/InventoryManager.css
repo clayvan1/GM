@@ -43,7 +43,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  text-decoration: none; /* Added for Link component styling */
+  text-decoration: none;
+   /* Added for Link component styling */
 }
 
 .btn-primary {
@@ -558,4 +559,72 @@
     font-size: 0.9rem;
     padding: 0.5rem 0.75rem;
   }
+}
+/* src/pages/InventoryManager.css */
+
+/* --- Filters/Search Bar --- */
+.inventory-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.inventory-filters input {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 100px;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.inventory-filters input:focus {
+  outline: none;
+  border-color: #4caf50;
+  box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+}
+
+/* Optional: responsive for small screens */
+@media (max-width: 600px) {
+  .inventory-filters {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .inventory-filters input {
+    width: 60%;
+  }
+}
+/* src/pages/InventoryManager.css */
+
+/* Inventory action buttons */
+.inventory-table .btn-secondary {
+  background-color: #1e88e5; /* Blue color */
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.inventory-table .btn-secondary:hover {
+  background-color: #1565c0; /* Darker blue on hover */
+}
+
+/* Update button inside Sold Price column */
+.inventory-table .btn-update {
+  background-color: #43a047; /* Green */
+  color: #fff;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.inventory-table .btn-update:hover {
+  background-color: #2e7d32; /* Darker green */
 }

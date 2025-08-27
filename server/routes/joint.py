@@ -1,22 +1,36 @@
-# joint.py
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, current_app
 from flask_restful import Api, Resource
 from extension import db
 from models.joint import Joint
 from models.inventory import Inventory
 from models.sale import Sale
+from datetime import datetime
 
 joint_bp = Blueprint("joint", __name__)
 joint_api = Api(joint_bp)
 
+# --- Helper to invalidate cache ---
+def invalidate_joint_cache(joint_id=None, employee_id=None):
+    cache = current_app.cache
+    cache.delete("all_joints")  # cache for all joints
+    if joint_id:
+        cache.delete(f"joint_{joint_id}")
+    if employee_id:
+        cache.delete(f"employee_joints_{employee_id}")
+
 class JointListCreate(Resource):
     def get(self):
-        """Return all joints"""
+        cache = current_app.cache
+        cached_data = cache.get("all_joints")
+        if cached_data:
+            return {"joints": cached_data, "cached": True}, 200
+
         joints = Joint.query.all()
-        return {"joints": [j.to_dict() for j in joints]}, 200
+        data = [j.to_dict() for j in joints]
+        cache.set("all_joints", data)
+        return {"joints": data, "cached": False}, 200
 
     def post(self):
-        """Create a new joint and deduct grams from inventory"""
         data = request.get_json()
         required_fields = ["inventory_id", "grams_used", "joints_count", "price_per_joint"]
         missing_fields = [f for f in required_fields if f not in data or data[f] in [None, ""]]
@@ -47,6 +61,9 @@ class JointListCreate(Resource):
             db.session.add(joint)
             db.session.commit()
 
+            # Invalidate cache
+            invalidate_joint_cache(joint_id=joint.id, employee_id=joint.assigned_to)
+
             return {"message": "Joint created", "joint": joint.to_dict()}, 201
 
         except Exception as e:
@@ -56,14 +73,21 @@ class JointListCreate(Resource):
 
 class JointDetail(Resource):
     def get(self, joint_id):
-        """Get joint by ID"""
+        cache = current_app.cache
+        cache_key = f"joint_{joint_id}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return {"joint": cached_data, "cached": True}, 200
+
         joint = Joint.query.get(joint_id)
         if not joint:
             return {"error": "Joint not found"}, 404
-        return joint.to_dict(), 200
+
+        data = joint.to_dict()
+        cache.set(cache_key, data)
+        return {"joint": data, "cached": False}, 200
 
     def put(self, joint_id):
-        """Update joint: sell or assign employee"""
         joint = Joint.query.get(joint_id)
         if not joint:
             return {"error": "Joint not found"}, 404
@@ -73,14 +97,12 @@ class JointDetail(Resource):
             # Selling joints
             sold_qty = int(data.get("sold_qty", 0))
             sold_price = float(data.get("sold_price", 0.0))
-            sold_by = str(data.get("sold_by", ""))  # person executing the sale
+            sold_by = str(data.get("sold_by", ""))
 
             if sold_qty > 0 and sold_price > 0:
-                # Update joint count and sold price
                 joint.joints_count = max(joint.joints_count - sold_qty, 0)
                 joint.sold_price = (joint.sold_price or 0.0) + sold_price
 
-                # Create a Sale record
                 sale = Sale(
                     inventory_id=joint.inventory_id,
                     quantity=sold_qty,
@@ -91,10 +113,16 @@ class JointDetail(Resource):
                 db.session.add(sale)
 
             # Update assigned employee if provided
+            old_employee = joint.assigned_to
             if "assigned_to" in data:
                 joint.assigned_to = str(data["assigned_to"]) if data["assigned_to"] else None
 
             db.session.commit()
+
+            # Invalidate cache
+            invalidate_joint_cache(joint_id=joint.id, employee_id=old_employee)
+            invalidate_joint_cache(employee_id=joint.assigned_to)
+
             return {"message": "Joint updated", "joint": joint.to_dict()}, 200
 
         except Exception as e:
@@ -102,14 +130,18 @@ class JointDetail(Resource):
             return {"error": str(e)}, 500
 
     def delete(self, joint_id):
-        """Delete a joint"""
         joint = Joint.query.get(joint_id)
         if not joint:
             return {"error": "Joint not found"}, 404
 
         try:
+            employee_id = joint.assigned_to
             db.session.delete(joint)
             db.session.commit()
+
+            # Invalidate cache
+            invalidate_joint_cache(joint_id=joint.id, employee_id=employee_id)
+
             return {"message": "Joint deleted"}, 200
         except Exception as e:
             db.session.rollback()
@@ -118,9 +150,16 @@ class JointDetail(Resource):
 
 class JointsByEmployee(Resource):
     def get(self, employee_id):
-        """Fetch all joints assigned to a specific employee"""
+        cache = current_app.cache
+        cache_key = f"employee_joints_{employee_id}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return {"joints": cached_data, "cached": True}, 200
+
         joints = Joint.query.filter_by(assigned_to=str(employee_id)).all()
-        return {"joints": [j.to_dict() for j in joints]}, 200
+        data = [j.to_dict() for j in joints]
+        cache.set(cache_key, data)
+        return {"joints": data, "cached": False}, 200
 
 
 # Register resources

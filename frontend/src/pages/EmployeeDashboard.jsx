@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getJoints, updateJoint } from "../Service/JointService";  
+
 import "./EmployeeJointsPage.css";
 
 const EmployeeDashboard = () => {

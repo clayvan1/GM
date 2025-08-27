@@ -56,9 +56,7 @@ export default function Navbar() {
           <li>
             <Link to="/superadmin/users" onClick={closeMenu}>Users</Link>
           </li>
-          <li>
-            <Link to="/contact" onClick={closeMenu}>Contact</Link>
-          </li>
+         
           <li>
             <button onClick={() => { logout(); closeMenu(); }} className="logout-btn">Logout</button>
           </li>
@@ -70,13 +68,7 @@ export default function Navbar() {
       return (
         <>
           <li>
-            <Link to="/dashboard" onClick={closeMenu}>Dashboard</Link>
-          </li>
-          <li>
-            <Link to="/assigned-joints" onClick={closeMenu}>My Joints</Link>
-          </li>
-          <li>
-            <Link to="/contact" onClick={closeMenu}>Contact</Link>
+            <Link to="/employee/Home" onClick={closeMenu}>Dashboard</Link>
           </li>
           <li>
             <button onClick={() => { logout(); closeMenu(); }} className="logout-btn">Logout</button>
