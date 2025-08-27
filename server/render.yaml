@@ -2,14 +2,14 @@
   name: gm-backend
   env: python
   rootDir: server
-  pythonVersion: 3.11   # 👈 Force Python 3.11 instead of 3.13
+  pythonVersion: 3.11   # Use Python 3.11
   buildCommand: |
     pip install --upgrade pip
     pip install -r requirements.txt
-  startCommand: gunicorn -w 4 -b 0.0.0.0:$PORT wsgi:app
+  startCommand: gunicorn -w 4 -b 0.0.0.0:$PORT app:app --timeout 120
   envVars:
     - key: DATABASE_URL
-      sync: false
+      sync: false   # set in Render dashboard
     - key: SECRET_KEY
       generateValue: true
     - key: REDIS_URL

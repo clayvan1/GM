@@ -3,7 +3,7 @@ import re
 import logging
 from datetime import timedelta
 
-from flask import Flask
+from flask import Flask, jsonify
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -62,7 +62,7 @@ def create_app():
     # --- JWT Config ---
     app.config["JWT_SECRET_KEY"] = app.config["SECRET_KEY"]
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
-    jwt = JWTManager(app)
+    JWTManager(app)
 
     # --- Cache Config (Redis if available, fallback to SimpleCache) ---
     if os.getenv("REDIS_URL"):
@@ -75,7 +75,7 @@ def create_app():
     # --- Init extensions ---
     db.init_app(app)
     Migrate(app, db)
-    bcrypt.init_app(app)  # ✅ added
+    bcrypt.init_app(app)
 
     # --- Enable global CORS ---
     CORS(app, resources={r"/api/*": {"origins": os.getenv("CORS_ORIGINS", "*")}})
@@ -88,7 +88,10 @@ def create_app():
     app.register_blueprint(debt_bp, url_prefix="/api/debts")
 
     # --- Health Check Route (for Render) ---
-   
+    @app.route("/healthz")
+    def health():
+        return jsonify({"status": "ok"}), 200
+
     # --- Logging Config ---
     logging.basicConfig(
         level=logging.INFO,
@@ -100,3 +103,7 @@ def create_app():
 
 # Entry point for WSGI servers (Gunicorn, uWSGI, etc.)
 app = create_app()
+
+# Optional: allow running locally with python app.py
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
