@@ -16,12 +16,12 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install Python dependencies
-COPY backend/requirements.txt .
+# Copy Python dependencies
+COPY server/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
-COPY backend/ ./
+COPY server/ ./
 
 # Copy frontend build into backend
 COPY --from=frontend /app/dist ./dist
