@@ -54,8 +54,8 @@ def create_app():
     # --- SQLAlchemy Connection Pooling Options ---
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "poolclass": QueuePool,
-        "pool_size": 5,
-        "max_overflow": 2,
+        "pool_size": 1,
+        "max_overflow": 0,
         "pool_timeout": 30,
         "pool_pre_ping": True,
         "pool_recycle": 3600
