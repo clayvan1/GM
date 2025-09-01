@@ -30,4 +30,4 @@ COPY --from=frontend /app/dist ./dist
 EXPOSE 8000
 
 # Start Gunicorn
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "app:app", "--timeout", "120"]
+CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:8000", "app:app", "--timeout", "120"]
