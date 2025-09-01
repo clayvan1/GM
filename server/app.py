@@ -5,7 +5,7 @@ from datetime import timedelta
 from flask import Flask, jsonify, send_from_directory
 from flask_migrate import Migrate
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
+from flask_jwt_extended import JWTManager # type: ignore
 from dotenv import load_dotenv
 from sqlalchemy.pool import QueuePool
 from extension import db, bcrypt
