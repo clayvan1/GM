@@ -441,7 +441,7 @@
   .summary-cards {
     grid-template-columns: 1fr 2fr; /* 2 columns of equal width */
     gap: 9px;
-    width: 60%;
+    width: 100%;
   }
 
   .summary-card {

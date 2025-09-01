@@ -2,11 +2,13 @@
 import axios from "axios";
 import localforage from "localforage";
 
-const API_BASE = import.meta.env.VITE_API_BASE + "/api/inventory";
+const INVENTORY_API = import.meta.env.VITE_API_BASE + "/api/inventory";
+const SALES_API = import.meta.env.VITE_API_BASE + "/api/sales";
 
 // LocalForage instances
-const offlineQueue = localforage.createInstance({ name: "inventoryQueue" });
+const offlineQueue = localforage.createInstance({ name: "appQueue" });
 const inventoryCache = localforage.createInstance({ name: "inventoryCache" });
+const salesCache = localforage.createInstance({ name: "salesCache" });
 
 // --- Offline Queue Helper ---
 const queueUpdate = async (update) => {
@@ -24,9 +26,19 @@ export const syncOfflineChanges = async () => {
 
   for (let item of queued) {
     try {
-      if (item.type === "update") await axios.put(`${API_BASE}/${item.id}`, item.payload);
-      else if (item.type === "create") await axios.post(`${API_BASE}/`, item.payload);
-      else if (item.type === "delete") await axios.delete(`${API_BASE}/${item.id}`);
+      if (item.entity === "inventory") {
+        if (item.type === "update")
+          await axios.put(`${INVENTORY_API}/${item.id}`, item.payload);
+        else if (item.type === "create")
+          await axios.post(`${INVENTORY_API}/`, item.payload);
+        else if (item.type === "delete")
+          await axios.delete(`${INVENTORY_API}/${item.id}`);
+      } else if (item.entity === "sale") {
+        if (item.type === "create")
+          await axios.post(`${SALES_API}/`, item.payload);
+        else if (item.type === "delete")
+          await axios.delete(`${SALES_API}/${item.id}`);
+      }
     } catch (err) {
       console.error("Failed syncing item:", item, err);
       return; // stop if one fails
@@ -34,37 +46,48 @@ export const syncOfflineChanges = async () => {
   }
 
   await offlineQueue.setItem("updates", []); // clear queue
-  await refreshCache(); // refresh cache after sync
+  await refreshInventoryCache();
+  await refreshSalesCache();
 };
 
-// --- Cache helper ---
-const refreshCache = async () => {
+// --- Cache helpers ---
+const refreshInventoryCache = async () => {
   try {
-    const res = await axios.get(`${API_BASE}/`);
+    const res = await axios.get(`${INVENTORY_API}/`);
     await inventoryCache.setItem("inventories", res.data.inventories);
     return res.data.inventories;
   } catch (err) {
-    console.error("Error refreshing cache:", err);
+    console.error("Error refreshing inventory cache:", err);
     return [];
   }
 };
 
-// --- Inventory API Calls with caching ---
+const refreshSalesCache = async () => {
+  try {
+    const res = await axios.get(`${SALES_API}/`);
+    await salesCache.setItem("sales", res.data.sales);
+    return res.data.sales;
+  } catch (err) {
+    console.error("Error refreshing sales cache:", err);
+    return [];
+  }
+};
+
+// =======================
+// INVENTORY FUNCTIONS
+// =======================
 
 // Fetch inventories (cached)
 export const getInventories = async () => {
   try {
-    // Try cache first
     const cached = await inventoryCache.getItem("inventories");
     if (cached && cached.length) return cached;
 
-    // If cache empty, fetch from server
-    const res = await axios.get(`${API_BASE}/`);
+    const res = await axios.get(`${INVENTORY_API}/`);
     await inventoryCache.setItem("inventories", res.data.inventories);
     return res.data.inventories;
   } catch (err) {
     console.error("Error fetching inventories:", err);
-    // Fallback: return cache even if outdated
     const cached = await inventoryCache.getItem("inventories");
     return cached || [];
   }
@@ -74,13 +97,11 @@ export const getInventories = async () => {
 export const createInventory = async (payload) => {
   try {
     if (!navigator.onLine) {
-      await queueUpdate({ type: "create", payload });
-      console.log("Queued create (offline):", payload);
+      await queueUpdate({ entity: "inventory", type: "create", payload });
       return { message: "Create queued (offline)", inventory: payload };
     }
-
-    const res = await axios.post(`${API_BASE}/`, payload);
-    await refreshCache(); // update cache
+    const res = await axios.post(`${INVENTORY_API}/`, payload);
+    await refreshInventoryCache();
     return res.data;
   } catch (err) {
     console.error("Error creating inventory:", err);
@@ -92,13 +113,11 @@ export const createInventory = async (payload) => {
 export const updateInventory = async (id, payload) => {
   try {
     if (!navigator.onLine) {
-      await queueUpdate({ type: "update", id, payload });
-      console.log("Queued update (offline):", id);
+      await queueUpdate({ entity: "inventory", type: "update", id, payload });
       return { message: "Update queued (offline)", inventory: { id, ...payload } };
     }
-
-    const res = await axios.put(`${API_BASE}/${id}`, payload);
-    await refreshCache(); // update cache
+    const res = await axios.put(`${INVENTORY_API}/${id}`, payload);
+    await refreshInventoryCache();
     return res.data;
   } catch (err) {
     console.error(`Error updating inventory ${id}:`, err);
@@ -110,16 +129,66 @@ export const updateInventory = async (id, payload) => {
 export const deleteInventory = async (id) => {
   try {
     if (!navigator.onLine) {
-      await queueUpdate({ type: "delete", id });
-      console.log("Queued delete (offline):", id);
+      await queueUpdate({ entity: "inventory", type: "delete", id });
       return { message: "Delete queued (offline)", id };
     }
-
-    const res = await axios.delete(`${API_BASE}/${id}`);
-    await refreshCache(); // update cache
+    const res = await axios.delete(`${INVENTORY_API}/${id}`);
+    await refreshInventoryCache();
     return res.data;
   } catch (err) {
     console.error(`Error deleting inventory ${id}:`, err);
+    throw err;
+  }
+};
+
+// =======================
+// SALES FUNCTIONS
+// =======================
+
+// Fetch sales (cached)
+export const getSales = async () => {
+  try {
+    const cached = await salesCache.getItem("sales");
+    if (cached && cached.length) return cached;
+
+    const res = await axios.get(`${SALES_API}/`);
+    await salesCache.setItem("sales", res.data.sales);
+    return res.data.sales;
+  } catch (err) {
+    console.error("Error fetching sales:", err);
+    const cached = await salesCache.getItem("sales");
+    return cached || [];
+  }
+};
+
+// Create sale
+export const createSale = async (payload) => {
+  try {
+    if (!navigator.onLine) {
+      await queueUpdate({ entity: "sale", type: "create", payload });
+      return { message: "Sale queued (offline)", sale: payload };
+    }
+    const res = await axios.post(`${SALES_API}/`, payload);
+    await refreshSalesCache();
+    return res.data;
+  } catch (err) {
+    console.error("Error creating sale:", err);
+    throw err;
+  }
+};
+
+// Delete sale
+export const deleteSale = async (id) => {
+  try {
+    if (!navigator.onLine) {
+      await queueUpdate({ entity: "sale", type: "delete", id });
+      return { message: "Delete queued (offline)", id };
+    }
+    const res = await axios.delete(`${SALES_API}/${id}`);
+    await refreshSalesCache();
+    return res.data;
+  } catch (err) {
+    console.error(`Error deleting sale ${id}:`, err);
     throw err;
   }
 };

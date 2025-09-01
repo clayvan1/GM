@@ -6,7 +6,17 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const storedToken = localStorage.getItem("token");
-  const storedUser = JSON.parse(localStorage.getItem("user"));
+
+  // ✅ safely handle JSON.parse errors
+  let storedUser = null;
+  try {
+    const rawUser = localStorage.getItem("user");
+    storedUser = rawUser ? JSON.parse(rawUser) : null;
+  } catch (err) {
+    console.error("❌ Failed to parse stored user from localStorage:", err);
+    storedUser = null;
+  }
+
   const storedEmployeeId = localStorage.getItem("employeeId");
 
   const [user, setUser] = useState(storedUser || null);
@@ -17,13 +27,12 @@ export const AuthProvider = ({ children }) => {
     const data = await login({ email, password });
 
     if (!data.error) {
-      setUser(data.user); // should include role + id
+      setUser(data.user);
       setToken(data.access_token);
 
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
-      // ✅ store employeeId if present
       if (data.user?.id) {
         localStorage.setItem("employeeId", data.user.id);
         setEmployeeId(data.user.id);
@@ -37,7 +46,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const handleSignup = async (username, email, password) => {
-    // FIX: Await and return the response from the signup service.
     const data = await signup({ username, email, password });
     return data;
   };

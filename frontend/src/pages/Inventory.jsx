@@ -1,8 +1,12 @@
-// src/pages/Inventory.jsx
+// src/pages/InventoryManager.jsx
 import React, { useState, useEffect } from "react";
 import "./InventoryManager.css";
 import { Link } from "react-router-dom";
-import { getInventories, createInventory, updateInventory } from "../Service/InventoryService";
+import {
+  getInventories,
+  createInventory,
+  updateInventory,
+} from "../Service/InventoryService";
 
 const InventoryManager = () => {
   const [inventories, setInventories] = useState([]);
@@ -19,18 +23,23 @@ const InventoryManager = () => {
   const itemsPerPage = 5;
   const [loading, setLoading] = useState(true);
 
-  // --- Filters/Search ---
-  const [searchStrain, setSearchStrain] = useState("");
-  const [minGrams, setMinGrams] = useState("");
-  const [maxGrams, setMaxGrams] = useState("");
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [modalLoading, setModalLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState({});
 
-  // Fetch inventories from server
+  // ✅ Fetch inventories from server
   const fetchInventories = async () => {
     try {
       setLoading(true);
-      const inventoriesData = await getInventories();
+      let inventoriesData = await getInventories();
+
+      // Sort: active first, then ended, by created_at desc
+      inventoriesData.sort((a, b) => {
+        if (a.ended_at && !b.ended_at) return 1;
+        if (!a.ended_at && b.ended_at) return -1;
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
+
       setInventories(inventoriesData);
       setFilteredInventories(inventoriesData);
     } catch (err) {
@@ -44,33 +53,32 @@ const InventoryManager = () => {
     fetchInventories();
   }, []);
 
-  // Apply filters whenever search/filter inputs change
+  // ✅ Search filter
   useEffect(() => {
-    let filtered = [...inventories];
+    if (!searchTerm) {
+      setFilteredInventories(inventories);
+      setCurrentPage(1);
+      return;
+    }
 
-    if (searchStrain) {
-      filtered = filtered.filter((inv) =>
-        inv.strain_name.toLowerCase().includes(searchStrain.toLowerCase())
+    const lowerTerm = searchTerm.toLowerCase();
+    const filtered = inventories.filter((inv) => {
+      return (
+        inv.strain_name?.toLowerCase().includes(lowerTerm) ||
+        String(inv.grams_available).includes(lowerTerm) ||
+        String(inv.price_per_gram).includes(lowerTerm) ||
+        String(inv.buying_price).includes(lowerTerm) ||
+        String(inv.joints?.length || 0).includes(lowerTerm) ||
+        String(inv.created_at).includes(lowerTerm) ||
+        String(inv.ended_at || "").includes(lowerTerm)
       );
-    }
-    if (minGrams) {
-      filtered = filtered.filter((inv) => inv.grams_available >= Number(minGrams));
-    }
-    if (maxGrams) {
-      filtered = filtered.filter((inv) => inv.grams_available <= Number(maxGrams));
-    }
-    if (minPrice) {
-      filtered = filtered.filter((inv) => inv.price_per_gram >= Number(minPrice));
-    }
-    if (maxPrice) {
-      filtered = filtered.filter((inv) => inv.price_per_gram <= Number(maxPrice));
-    }
+    });
 
     setFilteredInventories(filtered);
-    setCurrentPage(1); // Reset page when filtering
-  }, [searchStrain, minGrams, maxGrams, minPrice, maxPrice, inventories]);
+    setCurrentPage(1);
+  }, [searchTerm, inventories]);
 
-  // Pagination logic
+  // Pagination
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentInventories = filteredInventories.slice(indexOfFirst, indexOfLast);
@@ -87,6 +95,7 @@ const InventoryManager = () => {
     });
   };
 
+  // ✅ Update grams sold
   const updateGramsSoldHandler = async (id) => {
     const soldAmount = Number(soldInputs[id]?.grams || 0);
     const soldPrice = Number(soldInputs[id]?.soldPrice || 0);
@@ -94,28 +103,42 @@ const InventoryManager = () => {
     if (soldAmount <= 0) return;
 
     try {
-      const inv = inventories.find((i) => i.id === id);
-      const updated = await updateInventory(id, {
-        grams_available: Math.max(inv.grams_available - soldAmount, 0),
-        sold_price: soldPrice > 0 ? soldPrice : inv.sold_price || 0,
-      });
+      setUpdateLoading({ ...updateLoading, [id]: true });
 
-      setInventories((prev) =>
-        prev.map((i) => (i.id === id ? { ...i, ...updated.inventory } : i))
-      );
+      const payload = {
+        quantity_sold: soldAmount,
+        sale_type: "grams",
+        sold_price: soldPrice > 0 ? soldPrice : undefined,
+        sold_by: "system",
+      };
+
+      const response = await updateInventory(id, payload);
+
+      if (response?.inventory) {
+        setInventories((prev) =>
+          prev.map((inv) => (inv.id === id ? response.inventory : inv))
+        );
+        setSoldInputs({ ...soldInputs, [id]: { grams: "", soldPrice: "" } });
+      }
     } catch (err) {
-      console.error("Failed to update inventory:", err);
+      console.error(`[ERROR] Failed to update inventory ${id}:`, err);
+    } finally {
+      setUpdateLoading({ ...updateLoading, [id]: false });
     }
-
-    setSoldInputs({ ...soldInputs, [id]: { grams: "", soldPrice: "" } });
   };
 
+  // ✅ Create inventory
   const addInventoryHandler = async () => {
     const { strain_name, grams_available, price_per_gram, buying_price } = formData;
 
-    if (!strain_name || !grams_available || !price_per_gram || !buying_price) return;
+    if (!strain_name || !grams_available || !price_per_gram || !buying_price) {
+      alert("All fields are required.");
+      return;
+    }
 
     try {
+      setModalLoading(true);
+
       const created = await createInventory({
         strain_name,
         grams_available: Number(grams_available),
@@ -124,57 +147,45 @@ const InventoryManager = () => {
       });
 
       setInventories([...inventories, created.inventory]);
-      setFormData({ strain_name: "", grams_available: "", price_per_gram: "", buying_price: "" });
+      setFormData({
+        strain_name: "",
+        grams_available: "",
+        price_per_gram: "",
+        buying_price: "",
+      });
       setShowForm(false);
     } catch (err) {
       console.error("Failed to create inventory:", err);
+    } finally {
+      setModalLoading(false);
     }
   };
 
-  if (loading) return <div className="inventory-container">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="inventory-container" style={{ textAlign: "center", paddingTop: "150px" }}>
+        <div className="loader"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="inventory-container">
       <header className="inventory-header">
         <h1 className="title">🌿 Inventory Manager</h1>
-        <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-          ➕ Create Inventory
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #ccc" }}
+          />
+          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+            ➕ Create Inventory
+          </button>
+        </div>
       </header>
-
-      {/* Search and Filters */}
-      <div className="inventory-filters">
-        <input
-          type="text"
-          placeholder="Search by strain"
-          value={searchStrain}
-          onChange={(e) => setSearchStrain(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="Min grams"
-          value={minGrams}
-          onChange={(e) => setMinGrams(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="Max grams"
-          value={maxGrams}
-          onChange={(e) => setMaxGrams(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="Min price"
-          value={minPrice}
-          onChange={(e) => setMinPrice(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="Max price"
-          value={maxPrice}
-          onChange={(e) => setMaxPrice(e.target.value)}
-        />
-      </div>
 
       <div className="table-wrapper">
         <table className="inventory-table">
@@ -195,16 +206,16 @@ const InventoryManager = () => {
           </thead>
           <tbody>
             {currentInventories.map((inv) => (
-              <tr key={inv.id}>
-                <td data-label="ID">{inv.id}</td>
-                <td data-label="Strain Name">{inv.strain_name}</td>
-                <td data-label="Grams Available">{inv.grams_available}g</td>
-                <td data-label="Price per Gram">Ksh {inv.price_per_gram}</td>
-                <td data-label="Buying Price">Ksh {inv.buying_price}</td>
-                <td data-label="Joints Count">{inv.joints?.length || 0}</td>
-                <td data-label="Created At">{inv.created_at}</td>
-                <td data-label="Ended At">{inv.ended_at || "—"}</td>
-                <td data-label="Grams Sold">
+              <tr key={inv.id} className={inv.ended_at ? "ended-row" : ""}>
+                <td>{inv.id}</td>
+                <td>{inv.strain_name}</td>
+                <td>{inv.grams_available}g</td>
+                <td>Ksh {inv.price_per_gram}</td>
+                <td>Ksh {inv.buying_price}</td>
+                <td>{inv.joints?.length || 0}</td>
+                <td>{inv.created_at}</td>
+                <td>{inv.ended_at || "—"}</td>
+                <td>
                   <input
                     type="number"
                     min="1"
@@ -212,9 +223,10 @@ const InventoryManager = () => {
                     value={soldInputs[inv.id]?.grams || ""}
                     onChange={(e) => handleSoldInputChange(inv.id, "grams", e.target.value)}
                     style={{ width: "60px", marginRight: "8px" }}
+                    disabled={!!inv.ended_at}
                   />
                 </td>
-                <td data-label="Sold Price">
+                <td>
                   <input
                     type="number"
                     min="0"
@@ -222,17 +234,21 @@ const InventoryManager = () => {
                     value={soldInputs[inv.id]?.soldPrice || ""}
                     onChange={(e) => handleSoldInputChange(inv.id, "soldPrice", e.target.value)}
                     style={{ width: "80px", marginRight: "8px" }}
+                    disabled={!!inv.ended_at}
                   />
                   <button
-                    className=" btn-secondary"
+                    className="btn-update"
                     onClick={() => updateGramsSoldHandler(inv.id)}
-                    disabled={Number(soldInputs[inv.id]?.grams || 0) <= 0}
+                    disabled={!!inv.ended_at || Number(soldInputs[inv.id]?.grams || 0) <= 0 || updateLoading[inv.id]}
                   >
-                    Update
+                    {updateLoading[inv.id] ? <span className="loader-small"></span> : "Update"}
                   </button>
                 </td>
-                <td data-label="btn-secondary">
-                  <Link to={`/superadmin/inventory/${inv.id}`} className="btn-secondary">
+                <td>
+                  <Link
+                    to={`/superadmin/inventory/${inv.id}`}
+                    className="btn-secondary"
+                  >
                     Manage Joints
                   </Link>
                 </td>
@@ -316,8 +332,8 @@ const InventoryManager = () => {
               <button className="btn btn-cancel" onClick={() => setShowForm(false)}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={addInventoryHandler}>
-                Save
+              <button className="btn btn-primary" onClick={addInventoryHandler} disabled={modalLoading}>
+                {modalLoading ? <span className="loader-small"></span> : "Save"}
               </button>
             </div>
           </div>

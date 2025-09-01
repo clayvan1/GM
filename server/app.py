@@ -2,12 +2,12 @@ import os
 import logging
 from datetime import timedelta
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
-
+from sqlalchemy.pool import QueuePool
 from extension import db, bcrypt
 
 # Load environment variables
@@ -27,6 +27,7 @@ from routes.joint import joint_bp
 from routes.sale import sale_bp
 from routes.debt import debt_bp
 
+FRONTEND_DIST = "/home/clayvan/darkarts/GM/frontend/dist"
 
 def normalize_db_url(url: str) -> str:
     """Normalize and ensure sslmode=require in DB URLs."""
@@ -38,9 +39,8 @@ def normalize_db_url(url: str) -> str:
             url += "?sslmode=require"
     return url
 
-
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=FRONTEND_DIST, static_url_path="")
 
     # --- Database Config (Supabase/PostgreSQL) ---
     raw_url = os.getenv("MIGRATION_URL") or os.getenv("DATABASE_URL")
@@ -53,8 +53,12 @@ def create_app():
     
     # --- SQLAlchemy Connection Pooling Options ---
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        'pool_pre_ping': True,
-        'pool_recycle': 3600
+        "poolclass": QueuePool,
+        "pool_size": 5,
+        "max_overflow": 2,
+        "pool_timeout": 30,
+        "pool_pre_ping": True,
+        "pool_recycle": 3600
     }
 
     # --- Security / Secrets ---
@@ -80,10 +84,18 @@ def create_app():
     app.register_blueprint(sale_bp, url_prefix="/api/sales")
     app.register_blueprint(debt_bp, url_prefix="/api/debts")
 
-    # --- Health Check Route (for Render) ---
+    # --- Health Check Route ---
     @app.route("/healthz")
     def health():
         return jsonify({"status": "ok"}), 200
+
+    # --- Serve SPA ---
+    @app.route("/", defaults={"path": ""})
+    @app.route("/<path:path>")
+    def serve_spa(path):
+        if path and os.path.exists(os.path.join(FRONTEND_DIST, path)):
+            return send_from_directory(FRONTEND_DIST, path)
+        return send_from_directory(FRONTEND_DIST, "index.html")
 
     # --- Logging Config ---
     logging.basicConfig(
@@ -93,10 +105,8 @@ def create_app():
 
     return app
 
-
-# Entry point for WSGI servers (Gunicorn, uWSGI, etc.)
+# Entry point for WSGI servers
 app = create_app()
 
-# Optional: allow running locally with python app.py
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))

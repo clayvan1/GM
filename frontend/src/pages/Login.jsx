@@ -10,6 +10,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false); // Added loading state
   const { handleLogin } = useAuth();
   const navigate = useNavigate();
 
@@ -21,15 +22,25 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const data = await handleLogin(form.email, form.password);
+    setLoading(true); // Start spinner
+    setMessage(""); // Clear previous messages
 
-    if (data.error) {
-      setMessage(data.error);
-    } else {
-      // Redirect based on role
-      if (data.user.role === "superadmin") navigate("/superadmin");
-      else if (data.user.role === "employee") navigate("/employee");
-      else navigate("/"); // fallback
+    try {
+      const data = await handleLogin(form.email, form.password);
+
+      if (data.error) {
+        setMessage(data.error);
+      } else {
+        // Redirect based on role
+        if (data.user.role === "superadmin") navigate("/superadmin");
+        else if (data.user.role === "employee") navigate("/employee");
+        else navigate("/"); // fallback
+      }
+    // eslint-disable-next-line no-unused-vars
+    } catch (error) {
+      setMessage("An error occurred. Please try again.");
+    } finally {
+      setLoading(false); // Stop spinner
     }
   };
 
@@ -62,8 +73,12 @@ const LoginPage = () => {
             </span>
           </div>
 
-          <button className="auth-btn" onClick={handleSubmit}>
-            Login
+          <button className="auth-btn" onClick={handleSubmit} disabled={loading}>
+            {loading ? (
+              <div className="spinner"></div> // Show spinner while loading
+            ) : (
+              "Login"
+            )}
           </button>
 
           {message && <p className="login-message">{message}</p>}

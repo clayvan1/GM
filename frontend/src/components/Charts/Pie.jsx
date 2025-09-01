@@ -1,4 +1,3 @@
-// src/components/Charts/DonutChart.jsx
 import React from 'react';
 import './LineChart.css';
 import {
@@ -16,10 +15,16 @@ const DonutChart = ({
   data = [],
   legendVisibility = true,
   height = '400px',
-  title = '', // optional heading
+  title = '',
 }) => {
   const { currentMode } = useStateContext();
-  const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042']; // customize as needed
+  const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#FF5C8E', '#03C9D7'];
+
+  // Ensure y values are numbers
+  const chartData = data.map(item => ({
+    ...item,
+    y: Number(item.y) || 0,
+  }));
 
   return (
     <div
@@ -32,23 +37,25 @@ const DonutChart = ({
       }}
     >
       {title && <h3 className="graph-heading">{title}</h3>}
-      <ResponsiveContainer width="99%" height="100%">
+      <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
-            data={data}
+            data={chartData}
             dataKey="y"
             nameKey="x"
             innerRadius="40%"
-            outerRadius="70%"
+            outerRadius="90%"
             paddingAngle={3}
-            label={false} // remove floating labels
+            label={false}
             labelLine={false}
           >
-            {data.map((entry, index) => (
+            {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
             ))}
           </Pie>
-          {legendVisibility && <Legend wrapperStyle={{ color: 'var(--legend-color)' }} />}
+          {legendVisibility && (
+            <Legend wrapperStyle={{ color: 'var(--legend-color)' }} />
+          )}
           <Tooltip wrapperStyle={{ backgroundColor: 'var(--tooltip-bg)' }} />
         </PieChart>
       </ResponsiveContainer>

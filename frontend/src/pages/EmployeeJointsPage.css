@@ -18,8 +18,8 @@ h1 {
 /* --- Summary Cards --- */
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+
+  
   margin-bottom: 30px;
 }
 
@@ -148,7 +148,9 @@ h1 {
   .card p {
     font-size: 1rem;
   }
-
+  .summary-cards {
+    grid-template-columns: 1fr; /* all cards take full width */
+  }
   .input-cell {
     width: 65px;
   }
@@ -158,4 +160,38 @@ h1 {
     padding: 5px 8px;
     font-size: 0.8rem;
   }
+}
+/* --- Responsive Fixes --- */
+@media (max-width: 468px) {
+  .card p {
+    font-size: 1rem;
+  }
+ 
+  .input-cell {
+    width: 65px;
+  }
+  .summary-cards {
+    grid-template-columns: 1fr;
+    justify-items: center; /* centers cards */
+  }
+
+  .sell-btn,
+  .debt-btn {
+    padding: 5px 8px;
+    font-size: 0.8rem;
+  }
+}
+.spinner {
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-left-color: #fff;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 1s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

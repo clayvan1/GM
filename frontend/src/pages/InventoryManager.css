@@ -8,7 +8,6 @@
   padding: 2rem;
   box-sizing: border-box; /* Ensures padding is included in the width */
   background-color: #ffffff;
-  
   color: black;
   height: 100vh;
   padding-top: 100px;  /* Ensures the white background covers the screen height */
@@ -563,28 +562,6 @@
 /* src/pages/InventoryManager.css */
 
 /* --- Filters/Search Bar --- */
-.inventory-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
-  align-items: center;
-}
-
-.inventory-filters input {
-  padding: 6px 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 14px;
-  min-width: 100px;
-  transition: border 0.2s, box-shadow 0.2s;
-}
-
-.inventory-filters input:focus {
-  outline: none;
-  border-color: #4caf50;
-  box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
-}
 
 /* Optional: responsive for small screens */
 @media (max-width: 600px) {
@@ -627,4 +604,91 @@
 
 .inventory-table .btn-update:hover {
   background-color: #2e7d32; /* Darker green */
+}
+/* ===== Inventory Action Buttons ===== */
+.inventory-table .btn-delete {
+  background-color: #e53935; /* Red delete button */
+  color: #fff;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.inventory-table .btn-delete:hover {
+  background-color: #b71c1c; /* Darker red on hover */
+}
+
+/* Adjust action column layout for multiple buttons */
+.inventory-table td[data-label="Actions"] {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap; /* Prevent buttons from breaking layout */
+  justify-content: flex-start;
+  align-items: center;
+}
+
+/* Optional: make buttons smaller on mobile */
+@media (max-width: 768px) {
+  .inventory-table td[data-label="Actions"] {
+    gap: 4px;
+  }
+
+  .inventory-table .btn-secondary,
+  .inventory-table .btn-update,
+  .inventory-table .btn-delete {
+    padding: 3px 8px;
+    font-size: 12px;
+    min-width: 50px;
+  }
+}
+
+/* Ensure table inputs align nicely with buttons */
+.inventory-table td input[type="number"] {
+  margin-right: 5px; /* spacing between input and update button */
+  flex-shrink: 0;
+}
+
+/* Keep table responsive on mobile */
+@media (max-width: 480px) {
+  .inventory-table td[data-label="Actions"] {
+    flex-direction: column; /* Stack buttons vertically */
+    gap: 4px;
+  }
+
+  .inventory-table .btn-secondary,
+  .inventory-table .btn-update,
+  .inventory-table .btn-delete {
+    width: 100%;
+    text-align: center;
+    padding: 4px 0;
+    
+  }
+}
+/* Small loader for buttons */
+.loader-small {
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #3498db;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 5px; /* spacing between text and spinner */
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Ensure buttons keep width and align text+spinner */
+.btn-update, .btn.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px; /* space between text and spinner */
+  min-width: 70px; /* optional: ensures buttons don't shrink */
 }

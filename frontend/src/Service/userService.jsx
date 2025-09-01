@@ -9,10 +9,12 @@ const userCache = localforage.createInstance({ name: "userCache" });
 
 const UserService = {
   // --- Fetch all users (cached) ---
-  getAllUsers: async () => {
+  getAllUsers: async (forceRefresh = false) => {
     try {
-      const cached = await userCache.getItem("allUsers");
-      if (cached && cached.length) return cached;
+      if (!forceRefresh) {
+        const cached = await userCache.getItem("allUsers");
+        if (cached && cached.length) return cached;
+      }
 
       const response = await axios.get(`${API_URL}/all`);
       const users = response.data.users || [];
@@ -26,15 +28,17 @@ const UserService = {
   },
 
   // --- Fetch only employees (cached) ---
-  getEmployees: async () => {
+  getEmployees: async (forceRefresh = false) => {
     try {
-      const cacheKey = "employees";
-      const cached = await userCache.getItem(cacheKey);
-      if (cached && cached.length) return cached;
+      if (!forceRefresh) {
+        const cached = await userCache.getItem("employees");
+        if (cached && cached.length) return cached;
+      }
 
-      const allUsers = await UserService.getAllUsers();
+      // Fetch fresh data from API
+      const allUsers = await UserService.getAllUsers(forceRefresh);
       const employees = allUsers.filter(user => user.role === "employee");
-      await userCache.setItem(cacheKey, employees);
+      await userCache.setItem("employees", employees); // refresh cache
       return employees;
     } catch (error) {
       console.error("Error fetching employees:", error);
@@ -49,16 +53,20 @@ const UserService = {
       const response = await axios.put(`${API_URL}/${userId}/role`, { role });
 
       // Refresh cached users and employees after update
-      const allUsers = await UserService.getAllUsers(); // refetch from server
-      await userCache.setItem("allUsers", allUsers);
-      const employees = allUsers.filter(user => user.role === "employee");
-      await userCache.setItem("employees", employees);
+      await UserService.getAllUsers(true); // force refresh cache
+      await UserService.getEmployees(true); // force refresh employees cache
 
       return response.data;
     } catch (error) {
       console.error("Error updating user role:", error);
       throw error;
     }
+  },
+
+  // --- Optional: clear cache manually ---
+  clearCache: async () => {
+    await userCache.removeItem("allUsers");
+    await userCache.removeItem("employees");
   },
 };
 

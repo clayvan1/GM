@@ -1,109 +1,124 @@
-// src/services/JointService.jsx
+// src/Service/JointService.js
 import localforage from "localforage";
 
-// LocalForage instance for joints
-const jointCache = localforage.createInstance({ name: "jointCache" });
+const API_BASE = import.meta.env.VITE_API_BASE + "/api/joints"; 
 
-// --- Fetch all joints ---
+// Cache setup
+const jointCache = localforage.createInstance({ name: "joints" });
+
+/** Fetch all joints */
+// src/Service/JointService.js
+// src/Service/JointService.js
 export const getJoints = async () => {
   const cached = await jointCache.getItem("allJoints");
-  return cached || [];
-};
+  if (cached) {
+    // Return cached immediately
+    fetch(`${API_BASE}/`)
+      .then(res => res.json())
+      .then(data => {
+        const joints = Array.isArray(data) ? data : [];
+        jointCache.setItem("allJoints", joints);
+      })
+      .catch(() => {}); // fail silently in background
+    return cached;
+  }
 
-// --- Fetch joints assigned to a specific employee ---
-export const getJointsByEmployee = async (employeeId) => {
-  const cacheKey = `employee_${employeeId}`;
-  const cached = await jointCache.getItem(cacheKey);
-  return cached || [];
+  // If cache empty, fetch normally
+  const res = await fetch(`${API_BASE}/`);
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  const data = await res.json();
+  const joints = Array.isArray(data) ? data : [];
+  await jointCache.setItem("allJoints", joints);
+  return joints;
 };
-
-// --- Create joint locally ---
 export const createJoint = async (joint) => {
-  const allJoints = (await jointCache.getItem("allJoints")) || [];
-  const newJoint = { id: Date.now(), ...joint }; // generate temporary id
-  allJoints.push(newJoint);
-  await jointCache.setItem("allJoints", allJoints);
+  try {
+    const res = await fetch(`${API_BASE}/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(joint),
+    });
 
-  // Update per-employee cache if assigned
-  if (joint.userId) {
-    const key = `employee_${joint.userId}`;
-    const empJoints = (await jointCache.getItem(key)) || [];
-    empJoints.push(newJoint);
-    await jointCache.setItem(key, empJoints);
-  }
-
-  return newJoint;
-};
-
-// --- Update joint locally ---
-export const updateJoint = async (id, payload) => {
-  let allJoints = (await jointCache.getItem("allJoints")) || [];
-  allJoints = allJoints.map(j => (j.id === id ? { ...j, ...payload } : j));
-  await jointCache.setItem("allJoints", allJoints);
-
-  // Update per-employee cache if assigned
-  if (payload.userId) {
-    const key = `employee_${payload.userId}`;
-    let empJoints = (await jointCache.getItem(key)) || [];
-    empJoints = empJoints.map(j => (j.id === id ? { ...j, ...payload } : j));
-    await jointCache.setItem(key, empJoints);
-  }
-
-  return allJoints.find(j => j.id === id);
-};
-
-// --- Delete joint locally ---
-export const deleteJoint = async (id) => {
-  let allJoints = (await jointCache.getItem("allJoints")) || [];
-  const jointToDelete = allJoints.find(j => j.id === id);
-  allJoints = allJoints.filter(j => j.id !== id);
-  await jointCache.setItem("allJoints", allJoints);
-
-  // Remove from employee cache if assigned
-  if (jointToDelete?.userId) {
-    const key = `employee_${jointToDelete.userId}`;
-    let empJoints = (await jointCache.getItem(key)) || [];
-    empJoints = empJoints.filter(j => j.id !== id);
-    await jointCache.setItem(key, empJoints);
-  }
-
-  return { success: true, deletedId: id };
-};
-
-// --- Assign joint to employee locally ---
-export const assignJoint = async (id, userId) => {
-  let allJoints = (await jointCache.getItem("allJoints")) || [];
-  const joint = allJoints.find(j => j.id === id);
-  if (!joint) return null;
-
-  joint.userId = userId;
-  await jointCache.setItem("allJoints", allJoints);
-
-  // Add to employee cache
-  const key = `employee_${userId}`;
-  const empJoints = (await jointCache.getItem(key)) || [];
-  if (!empJoints.find(j => j.id === id)) {
-    empJoints.push(joint);
-    await jointCache.setItem(key, empJoints);
-  }
-
-  return joint;
-};
-
-// --- Initialize cache manually ---
-export const initializeCache = async (joints) => {
-  await jointCache.setItem("allJoints", joints || []);
-
-  // Build per-employee cache
-  const employeeMap = {};
-  (joints || []).forEach(j => {
-    if (j.userId) {
-      if (!employeeMap[j.userId]) employeeMap[j.userId] = [];
-      employeeMap[j.userId].push(j);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `API failed: ${res.status}`);
     }
-  });
 
-  for (const [userId, empJoints] of Object.entries(employeeMap)) {
-    await jointCache.setItem(`employee_${userId}`, empJoints);
+    const data = await res.json();
+    const newJoint = data; // ✅ fix here
+
+    console.log("✅ Created joint:", newJoint);
+
+    let all = (await jointCache.getItem("allJoints")) || [];
+    if (!Array.isArray(all)) all = [];
+    await jointCache.setItem("allJoints", [...all, newJoint]);
+
+    return newJoint;
+  } catch (err) {
+    console.error("❌ createJoint error:", err.message);
+
+    const offlineJoint = { id: Date.now(), ...joint, offline: true };
+    let all = (await jointCache.getItem("allJoints")) || [];
+    if (!Array.isArray(all)) all = [];
+    await jointCache.setItem("allJoints", [...all, offlineJoint]);
+
+    return offlineJoint;
+  }
+};
+
+/** Update an existing joint */
+export const updateJoint = async (id, updates) => {
+  try {
+    const res = await fetch(`${API_BASE}/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+
+    if (!res.ok) throw new Error(`API failed: ${res.status}`);
+
+    const updated = await res.json();
+
+    const all = (await jointCache.getItem("allJoints")) || [];
+    const newAll = all.map((j) => (j.id === id ? updated : j));
+    await jointCache.setItem("allJoints", newAll);
+
+    return updated;
+  } catch (err) {
+    console.error("❌ updateJoint error:", err.message);
+    throw err;
+  }
+};
+
+/** Delete a joint */
+export const deleteJoint = async (id) => {
+  try {
+    const res = await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(`API failed: ${res.status}`);
+
+    const result = await res.json();
+
+    const all = (await jointCache.getItem("allJoints")) || [];
+    const newAll = all.filter((j) => j.id !== id);
+    await jointCache.setItem("allJoints", newAll);
+
+    return result;
+  } catch (err) {
+    console.error("❌ deleteJoint error:", err.message);
+    throw err;
+  }
+};
+
+/** Get joints for a specific employee */
+export const getJointsByEmployee = async (employeeId) => {
+  try {
+    const res = await fetch(`${API_BASE}/employee/${employeeId}`);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+    const data = await res.json();
+    return Array.isArray(data.joints) ? data.joints : [];
+  } catch (err) {
+    console.error("❌ getJointsByEmployee error:", err.message);
+    return [];
   }
 };

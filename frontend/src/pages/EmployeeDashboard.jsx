@@ -1,4 +1,3 @@
-// src/pages/EmployeeDashboard.jsx
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getJoints, updateJoint } from "../Service/JointService";  
@@ -10,6 +9,7 @@ const EmployeeDashboard = () => {
   const [joints, setJoints] = useState([]);
   const [sales, setSales] = useState({});
   const [dailySales, setDailySales] = useState({ totalSold: 0, totalValue: 0 });
+  const [loadingSales, setLoadingSales] = useState({}); // Track loading per joint
 
   // Load daily sales from localStorage
   useEffect(() => {
@@ -32,7 +32,7 @@ const EmployeeDashboard = () => {
   useEffect(() => {
     const fetchEmployeeJoints = async () => {
       try {
-        const allJoints = await getJoints(); // array of joints
+        const allJoints = await getJoints();
         const filtered = allJoints.filter(
           j => String(j.assigned_to) === String(employeeId) && j.joints_count > 0
         );
@@ -76,6 +76,8 @@ const EmployeeDashboard = () => {
       return;
     }
 
+    setLoadingSales(prev => ({ ...prev, [joint.id]: true })); // start spinner
+
     const newCount = joint.joints_count - bluntsSold;
     const updatedSoldPrice = (joint.sold_price || 0) + soldPrice * bluntsSold;
 
@@ -105,6 +107,9 @@ const EmployeeDashboard = () => {
       }));
     } catch (err) {
       console.error("❌ Failed to sell blunts:", err);
+      alert("Failed to sell blunts. Please try again.");
+    } finally {
+      setLoadingSales(prev => ({ ...prev, [joint.id]: false })); // stop spinner
     }
   };
 
@@ -113,14 +118,7 @@ const EmployeeDashboard = () => {
       <h1>Employee Dashboard</h1>
 
       {/* Summary Cards */}
-      <div className="summary-cards">
-        <div className="card highlight">
-          <h3>Sales Today</h3>
-          <p>{dailySales.totalSold} blunts</p>
-          <p>KES {dailySales.totalValue}</p>
-        </div>
-      </div>
-
+    
       {/* Joints Table */}
       <div className="table-wrapper">
         <table className="employee-table">
@@ -142,6 +140,7 @@ const EmployeeDashboard = () => {
                 const entry = sales[joint.id] || {};
                 const bluntsSold = parseInt(entry.bluntsSold) || 0;
                 const jointsRemaining = Math.max((joint.joints_count || 0) - bluntsSold, 0);
+                const isLoading = loadingSales[joint.id];
 
                 return (
                   <tr key={joint.id}>
@@ -175,9 +174,9 @@ const EmployeeDashboard = () => {
                       <button
                         className="sell-btn"
                         onClick={() => sellBlunts(joint)}
-                        disabled={bluntsSold > joint.joints_count || bluntsSold <= 0}
+                        disabled={bluntsSold > joint.joints_count || bluntsSold <= 0 || isLoading}
                       >
-                        Sell
+                        {isLoading ? <div className="spinner"></div> : "Sell"}
                       </button>
                     </td>
                   </tr>
