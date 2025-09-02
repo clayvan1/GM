@@ -652,6 +652,16 @@
 
 /* Keep table responsive on mobile */
 @media (max-width: 480px) {
+
+
+.inventory-container {
+  /* Corrected to make the container full-width properly */
+  width: 100vw;
+  
+  padding-top: 100px;  /* Ensures the white background covers the screen height */
+}
+
+  
   .inventory-table td[data-label="Actions"] {
     flex-direction: column; /* Stack buttons vertically */
     gap: 4px;

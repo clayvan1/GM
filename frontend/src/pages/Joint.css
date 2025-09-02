@@ -309,6 +309,15 @@
 }
 
 @media (max-width: 480px) {
+  .joints-container {
+  padding: 20px;
+  width: 90vw;
+  margin: 0 auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+  height: 100vh;
+  padding-top: 160px;
+}
   .header-row h1 {
     font-size: 1.3rem;
   }

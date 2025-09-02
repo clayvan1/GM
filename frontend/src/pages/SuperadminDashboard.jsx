@@ -7,7 +7,7 @@ import LineChart from "../components/Charts/LineChart";
 import SparkLine from "../components/Charts/SparkLine";
 import ProfitLossChart from "../components/Charts/ProfitLossChart";
 import BarChartBox from "../components/Charts/Bargraph";
- import DonutChart from "../components/Charts/Pie";
+import DonutChart from "../components/Charts/Pie";
 import "./SuperadminDashboard.css";
 
 function SuperadminDashboard() {
@@ -145,7 +145,6 @@ function SuperadminDashboard() {
     yval: inv.sales.reduce((sum, s) => sum + (s.total_price || 0), 0),
   }));
 
-  // --- Pie chart with top 6 + Others ---
   const pieSourceData = safeInventoryData.map((inv) => ({
     x: inv.strain_name,
     y: inv.grams_available || 0,
@@ -173,6 +172,15 @@ function SuperadminDashboard() {
     value: inv.sales.reduce((sum, s) => sum + (s.quantity || 0), 0),
   }));
 
+  // ------------------------------
+  // FALLBACKS
+  // ------------------------------
+  const fallbackLine = [{ date: "No Data", count: 0 }];
+  const fallbackProfitLoss = [{ date: "No Data", profitLoss: 0 }];
+  const fallbackSparkline = [{ x: 0, yval: 0 }];
+  const fallbackPie = [{ x: "No Data", y: 1, text: "0 g" }];
+  const fallbackBar = [{ label: "No Data", value: 0 }];
+
   if (loading)
     return (
       <div className="loader-container">
@@ -188,7 +196,9 @@ function SuperadminDashboard() {
         <div className="left-col">
           <div className="realtime-graph">
             <h3 className="graph-heading">Profit / Loss Over Time</h3>
-            <ProfitLossChart data={profitLossData} />
+            <ProfitLossChart
+              data={profitLossData.length ? profitLossData : fallbackProfitLoss}
+            />
           </div>
 
           <div className="dashboard-card">
@@ -198,7 +208,7 @@ function SuperadminDashboard() {
               type="Line"
               height="70%"
               width="100%"
-              data={SparklineAreaData}
+              data={SparklineAreaData.length ? SparklineAreaData : fallbackSparkline}
             />
           </div>
         </div>
@@ -227,7 +237,11 @@ function SuperadminDashboard() {
 
           <div className="dashboard-card line-chart-card graph-card">
             <h3 className="graph-heading">Order Trend Over Time</h3>
-            <LineChart data={salesTrendData} xKey="date" yKey="count" />
+            <LineChart
+              data={salesTrendData.length ? salesTrendData : fallbackLine}
+              xKey="date"
+              yKey="count"
+            />
           </div>
         </div>
 
@@ -235,18 +249,18 @@ function SuperadminDashboard() {
         <div className="right-col">
           <div className="dashboard-card">
             <h3 className="graph-heading">Inventory Size by Strain</h3>
-          <DonutChart
-   id="doughnut-chart"
-   data={ecomPieChartData}
-   legendVisibility={true}
-   height="300px"
-   
-   /></div>
+            <DonutChart
+              id="doughnut-chart"
+              data={ecomPieChartData.length ? ecomPieChartData : fallbackPie}
+              legendVisibility={true}
+              height="300px"
+            />
+          </div>
 
           <div className="dashboard-card">
             <h3 className="graph-heading">Sales Count by Strain</h3>
             <BarChartBox
-              data={barChartData}
+              data={barChartData.length ? barChartData : fallbackBar}
               xKey="label"
               yKey="value"
               height="300px"
