@@ -1,6 +1,7 @@
 // src/services/inventoryService.jsx
 import axios from "axios";
 import localforage from "localforage";
+import * as JointService from "./JointService"; 
 
 const INVENTORY_API = import.meta.env.VITE_API_BASE + "/api/inventory";
 const SALES_API = import.meta.env.VITE_API_BASE + "/api/sales";
@@ -10,14 +11,14 @@ const offlineQueue = localforage.createInstance({ name: "appQueue" });
 const inventoryCache = localforage.createInstance({ name: "inventoryCache" });
 const salesCache = localforage.createInstance({ name: "salesCache" });
 
-// --- Offline Queue Helper ---
+// ======================= Offline Queue Helper =======================
 const queueUpdate = async (update) => {
   const queued = (await offlineQueue.getItem("updates")) || [];
   queued.push(update);
   await offlineQueue.setItem("updates", queued);
 };
 
-// --- Sync offline changes ---
+// ======================= Sync Offline Changes =======================
 export const syncOfflineChanges = async () => {
   const queued = (await offlineQueue.getItem("updates")) || [];
   if (!queued.length) return;
@@ -27,17 +28,12 @@ export const syncOfflineChanges = async () => {
   for (let item of queued) {
     try {
       if (item.entity === "inventory") {
-        if (item.type === "update")
-          await axios.put(`${INVENTORY_API}/${item.id}`, item.payload);
-        else if (item.type === "create")
-          await axios.post(`${INVENTORY_API}/`, item.payload);
-        else if (item.type === "delete")
-          await axios.delete(`${INVENTORY_API}/${item.id}`);
+        if (item.type === "update") await axios.put(`${INVENTORY_API}/${item.id}`, item.payload);
+        else if (item.type === "create") await axios.post(`${INVENTORY_API}/`, item.payload);
+        else if (item.type === "delete") await axios.delete(`${INVENTORY_API}/${item.id}`);
       } else if (item.entity === "sale") {
-        if (item.type === "create")
-          await axios.post(`${SALES_API}/`, item.payload);
-        else if (item.type === "delete")
-          await axios.delete(`${SALES_API}/${item.id}`);
+        if (item.type === "create") await axios.post(`${SALES_API}/`, item.payload);
+        else if (item.type === "delete") await axios.delete(`${SALES_API}/${item.id}`);
       }
     } catch (err) {
       console.error("Failed syncing item:", item, err);
@@ -50,8 +46,8 @@ export const syncOfflineChanges = async () => {
   await refreshSalesCache();
 };
 
-// --- Cache helpers ---
-const refreshInventoryCache = async () => {
+// ======================= Cache Helpers =======================
+export const refreshInventoryCache = async () => {
   try {
     const res = await axios.get(`${INVENTORY_API}/`);
     await inventoryCache.setItem("inventories", res.data.inventories);
@@ -62,7 +58,7 @@ const refreshInventoryCache = async () => {
   }
 };
 
-const refreshSalesCache = async () => {
+export const refreshSalesCache = async () => {
   try {
     const res = await axios.get(`${SALES_API}/`);
     await salesCache.setItem("sales", res.data.sales);
@@ -73,9 +69,13 @@ const refreshSalesCache = async () => {
   }
 };
 
-// =======================
-// INVENTORY FUNCTIONS
-// =======================
+// Helper to refresh inventory whenever joints change
+export const refreshInventoryAfterJoint = async () => {
+  console.log("Refreshing inventory because a joint changed");
+  await refreshInventoryCache();
+};
+
+// ======================= INVENTORY FUNCTIONS =======================
 
 // Fetch inventories (cached)
 export const getInventories = async () => {
@@ -83,13 +83,10 @@ export const getInventories = async () => {
     const cached = await inventoryCache.getItem("inventories");
     if (cached && cached.length) return cached;
 
-    const res = await axios.get(`${INVENTORY_API}/`);
-    await inventoryCache.setItem("inventories", res.data.inventories);
-    return res.data.inventories;
+    return await refreshInventoryCache();
   } catch (err) {
     console.error("Error fetching inventories:", err);
-    const cached = await inventoryCache.getItem("inventories");
-    return cached || [];
+    return (await inventoryCache.getItem("inventories")) || [];
   }
 };
 
@@ -118,6 +115,7 @@ export const updateInventory = async (id, payload) => {
     }
     const res = await axios.put(`${INVENTORY_API}/${id}`, payload);
     await refreshInventoryCache();
+    await refreshSalesCache();
     return res.data;
   } catch (err) {
     console.error(`Error updating inventory ${id}:`, err);
@@ -141,9 +139,7 @@ export const deleteInventory = async (id) => {
   }
 };
 
-// =======================
-// SALES FUNCTIONS
-// =======================
+// ======================= SALES FUNCTIONS =======================
 
 // Fetch sales (cached)
 export const getSales = async () => {
@@ -151,13 +147,10 @@ export const getSales = async () => {
     const cached = await salesCache.getItem("sales");
     if (cached && cached.length) return cached;
 
-    const res = await axios.get(`${SALES_API}/`);
-    await salesCache.setItem("sales", res.data.sales);
-    return res.data.sales;
+    return await refreshSalesCache();
   } catch (err) {
     console.error("Error fetching sales:", err);
-    const cached = await salesCache.getItem("sales");
-    return cached || [];
+    return (await salesCache.getItem("sales")) || [];
   }
 };
 
@@ -170,6 +163,7 @@ export const createSale = async (payload) => {
     }
     const res = await axios.post(`${SALES_API}/`, payload);
     await refreshSalesCache();
+    await refreshInventoryCache(); // stock may change
     return res.data;
   } catch (err) {
     console.error("Error creating sale:", err);
@@ -186,6 +180,7 @@ export const deleteSale = async (id) => {
     }
     const res = await axios.delete(`${SALES_API}/${id}`);
     await refreshSalesCache();
+    await refreshInventoryCache(); // stock may change
     return res.data;
   } catch (err) {
     console.error(`Error deleting sale ${id}:`, err);

@@ -92,7 +92,7 @@ export default function Navbar() {
           <button onClick={toggleMenu} className="navbar-icon">
             {menuOpen ? <FiX /> : <FiMenu />}
           </button>
-          <div className="navbar-title">MyApp</div>
+          <div className="navbar-title">entrapreneur</div>
           <button className="navbar-icon">
             <FiUser />
           </button>

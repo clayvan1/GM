@@ -6,7 +6,6 @@ from models.inventory import Inventory
 from models.sale import Sale
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo  # Python 3.9+
-
 inventory_bp = Blueprint("inventory", __name__)
 inventory_api = Api(inventory_bp)
 
@@ -86,15 +85,30 @@ class InventoryDetail(Resource):
             # Normal sale/usage updates
             quantity_sold = data.get("quantity_sold")
             sold_price_input = data.get("sold_price")
+            sale_type = data.get("sale_type", "grams")  # default "grams"
+            sold_by = data.get("sold_by", "system")
 
             if quantity_sold:
                 quantity_sold = float(quantity_sold)
                 if inventory.grams_available < quantity_sold:
                     return {"error": "Not enough stock"}, 400
 
+                # Reduce stock
                 inventory.grams_available -= quantity_sold
+
+                # Update sold price
                 if sold_price_input:
                     inventory.sold_price = (inventory.sold_price or 0) + float(sold_price_input)
+
+                # Create Sale record 👇
+                sale = Sale(
+                    inventory_id=inventory.id,
+                    quantity=quantity_sold,
+                    sale_type=sale_type,
+                    total_price=float(sold_price_input) if sold_price_input else 0,
+                    sold_by=sold_by
+                )
+                db.session.add(sale)
 
                 # Auto end when grams hit 0
                 if inventory.grams_available <= 0 and inventory.ended_at is None:
@@ -116,7 +130,6 @@ class InventoryDetail(Resource):
         except Exception as e:
             db.session.rollback()
             return {"error": str(e)}, 500
-
 
 # Register resources
 inventory_api.add_resource(InventoryListCreate, "/")

@@ -8,7 +8,7 @@ import {
   updateJoint,
   deleteJoint,
 } from "../Service/JointService";
-import { getInventories, updateInventory } from "../Service/InventoryService";
+import { getInventories } from "../Service/InventoryService";
 import UserService from "../Service/userService";
 import { useAuth } from "../context/AuthContext";
 
@@ -41,14 +41,7 @@ const JointsPage = () => {
       setLoading(true);
       const invArray = await getInventories();
       const invData = invArray.find((i) => i.id === Number(inventoryId));
-
-      if (!invData) {
-        setInventory(null);
-        return;
-      }
-
-      const gramsAvailable = parseFloat(invData.grams_available ?? 0);
-      setInventory({ ...invData, grams_available: gramsAvailable });
+      setInventory(invData || null);
     } catch (err) {
       setInventory(null);
     } finally {
@@ -73,10 +66,8 @@ const JointsPage = () => {
   const fetchEmployees = async () => {
     try {
       const allUsers = await UserService.getAllUsers();
-      const onlyEmployees = allUsers.filter((u) => u.role === "employee");
-      setEmployees(onlyEmployees);
+      setEmployees(allUsers.filter((u) => u.role === "employee"));
     } catch (err) {
-      console.error("Failed to fetch employees", err);
       setEmployees([]);
     }
   };
@@ -98,8 +89,7 @@ const JointsPage = () => {
       return;
     }
 
-    const availableGrams = parseFloat(inventory?.grams_available || 0);
-    if (!inventory || availableGrams < gramsFloat) {
+    if (!inventory || inventory.grams_available < gramsFloat) {
       alert("Not enough grams in inventory!");
       return;
     }
@@ -110,35 +100,19 @@ const JointsPage = () => {
       grams_used: gramsFloat,
       price_per_joint: priceFloat,
       assigned_to: null,
-      sold_price: 0.0,
+      sold_price: 0,
     };
 
     try {
       setButtonLoading((prev) => ({ ...prev, addJoint: true }));
-
       await createJoint(payload);
-
-      // subtract grams
-      let newGrams = availableGrams - gramsFloat;
-      const updatePayload = { grams_available: newGrams >= 0 ? newGrams : 0 };
-
-      // auto-end when grams hit zero
-      if (newGrams <= 0 && !inventory.ended_at) {
-        updatePayload.ended_at = new Date().toISOString();
-        newGrams = 0;
-      }
-
-      await updateInventory(inventory.id, updatePayload);
-
       await fetchInventory();
       await fetchJoints();
-
-      // reset modal form
       setIsModalOpen(false);
       setJointCount("");
       setGramsUsed("");
       setPricePerJoint("");
-    } catch (err) {
+    } catch {
       alert("Failed to create joint.");
     } finally {
       setButtonLoading((prev) => ({ ...prev, addJoint: false }));
@@ -151,7 +125,7 @@ const JointsPage = () => {
     const toSell = Math.floor(Number(soldInputs[jointId] || 0));
     const soldPrice = parseFloat(soldPriceInputs[jointId] || 0);
 
-    if (toSell <= 0 || soldPrice <= 0) return;
+    if (toSell <= 0) return;
     if (toSell > (joint.joints_count || 0)) {
       alert(`Cannot sell more than ${joint.joints_count} joints.`);
       return;
@@ -162,15 +136,16 @@ const JointsPage = () => {
       sold_price: soldPrice,
       sold_by: employeeId,
     };
+
     try {
       setButtonLoading((prev) => ({ ...prev, [`sell-${jointId}`]: true }));
       await updateJoint(jointId, payload);
+      // REFRESH joints and inventory after sale
       await fetchJoints();
       await fetchInventory();
-
       setSoldInputs((prev) => ({ ...prev, [jointId]: "" }));
       setSoldPriceInputs((prev) => ({ ...prev, [jointId]: "" }));
-    } catch (err) {
+    } catch {
       alert("Failed to sell joints.");
     } finally {
       setButtonLoading((prev) => ({ ...prev, [`sell-${jointId}`]: false }));
@@ -187,12 +162,10 @@ const JointsPage = () => {
     const payload = { assigned_to: employeeIdToAssign };
     try {
       setButtonLoading((prev) => ({ ...prev, [`assign-${jointId}`]: true }));
-      const updated = await updateJoint(jointId, payload);
-      setJoints((prev) =>
-        prev.map((j) => (j.id === jointId ? updated.joint || updated : j))
-      );
+      await updateJoint(jointId, payload);
+      await fetchJoints();
       setAssignInputs((prev) => ({ ...prev, [jointId]: "" }));
-    } catch (err) {
+    } catch {
       alert("Failed to assign employee.");
     } finally {
       setButtonLoading((prev) => ({ ...prev, [`assign-${jointId}`]: false }));
@@ -206,7 +179,7 @@ const JointsPage = () => {
       await deleteJoint(jointId);
       await fetchJoints();
       await fetchInventory();
-    } catch (err) {
+    } catch {
       alert("Failed to delete joint.");
     } finally {
       setButtonLoading((prev) => ({ ...prev, [`delete-${jointId}`]: false }));
@@ -214,10 +187,7 @@ const JointsPage = () => {
   };
 
   // =================== Totals ===================
-  const totalJoints = joints.reduce(
-    (sum, j) => sum + (j.joints_count || 0),
-    0
-  );
+  const totalJoints = joints.reduce((sum, j) => sum + (j.joints_count || 0), 0);
   const totalValue = joints.reduce(
     (sum, j) => sum + (j.joints_count || 0) * (j.price_per_joint || 0),
     0
@@ -225,8 +195,7 @@ const JointsPage = () => {
   const totalCashSold = joints.reduce((sum, j) => sum + (j.sold_price || 0), 0);
   const gramsRemaining = inventory?.grams_available || 0;
 
-  if (loading)
-    return <div className="joints-container">Loading joints...</div>;
+  if (loading) return <div className="joints-container">Loading joints...</div>;
 
   return (
     <div className="joints-container">
@@ -287,9 +256,7 @@ const JointsPage = () => {
                   <td>{j.joints_count}</td>
                   <td>{j.grams_used}g</td>
                   <td>Ksh {j.price_per_joint}</td>
-                  <td>
-                    Ksh {(j.joints_count || 0) * (j.price_per_joint || 0)}
-                  </td>
+                  <td>Ksh {(j.joints_count || 0) * (j.price_per_joint || 0)}</td>
                   <td>
                     <input
                       type="number"
@@ -297,10 +264,7 @@ const JointsPage = () => {
                       placeholder="Qty"
                       value={soldInputs[j.id] || ""}
                       onChange={(e) =>
-                        setSoldInputs((prev) => ({
-                          ...prev,
-                          [j.id]: e.target.value,
-                        }))
+                        setSoldInputs((prev) => ({ ...prev, [j.id]: e.target.value }))
                       }
                       disabled={j.joints_count === 0}
                     />
@@ -308,61 +272,44 @@ const JointsPage = () => {
                   <td>
                     <input
                       type="number"
-                      min="1"
+                      min="0"
                       step="0.1"
                       placeholder="Price"
                       value={soldPriceInputs[j.id] || ""}
                       onChange={(e) =>
-                        setSoldPriceInputs((prev) => ({
-                          ...prev,
-                          [j.id]: e.target.value,
-                        }))
+                        setSoldPriceInputs((prev) => ({ ...prev, [j.id]: e.target.value }))
                       }
                       disabled={j.joints_count === 0}
                     />
                     <button
                       className="btn btn-secondary"
                       onClick={() => sellBlunts(j.id)}
-                      disabled={
-                        j.joints_count === 0 || buttonLoading[`sell-${j.id}`]
-                      }
+                      disabled={j.joints_count === 0 || buttonLoading[`sell-${j.id}`]}
                     >
-                      {buttonLoading[`sell-${j.id}`]
-                        ? "⏳ Selling..."
-                        : "Sell"}
+                      {buttonLoading[`sell-${j.id}`] ? "⏳ Selling..." : "Sell"}
                     </button>
                   </td>
                   <td>
-                    {employees.find((e) => e.id === Number(j.sold_by))
-                      ?.username || "-"}
+                    {employees.find((e) => e.id === Number(j.sold_by))?.username || "-"}
                   </td>
                   <td>
                     <select
                       value={assignInputs[j.id] || j.assigned_to || ""}
                       onChange={(e) =>
-                        setAssignInputs((prev) => ({
-                          ...prev,
-                          [j.id]: e.target.value,
-                        }))
+                        setAssignInputs((prev) => ({ ...prev, [j.id]: e.target.value }))
                       }
                     >
                       <option value="">-- Assign --</option>
                       {employees.map((emp) => (
-                        <option key={emp.id} value={emp.id}>
-                          {emp.username}
-                        </option>
+                        <option key={emp.id} value={emp.id}>{emp.username}</option>
                       ))}
                     </select>
                     <button
                       className="btn btn-secondary"
-                      onClick={() =>
-                        assignEmployee(j.id, assignInputs[j.id] || j.assigned_to)
-                      }
+                      onClick={() => assignEmployee(j.id, assignInputs[j.id] || j.assigned_to)}
                       disabled={buttonLoading[`assign-${j.id}`]}
                     >
-                      {buttonLoading[`assign-${j.id}`]
-                        ? "⏳ Assigning..."
-                        : "Assign"}
+                      {buttonLoading[`assign-${j.id}`] ? "⏳ Assigning..." : "Assign"}
                     </button>
                   </td>
                   <td>
@@ -371,18 +318,14 @@ const JointsPage = () => {
                       onClick={() => handleDeleteJoint(j.id)}
                       disabled={buttonLoading[`delete-${j.id}`]}
                     >
-                      {buttonLoading[`delete-${j.id}`]
-                        ? "⏳ Deleting..."
-                        : "🗑 Delete"}
+                      {buttonLoading[`delete-${j.id}`] ? "⏳ Deleting..." : "🗑 Delete"}
                     </button>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="10" className="no-data">
-                  No joints available.
-                </td>
+                <td colSpan="10" className="no-data">No joints available.</td>
               </tr>
             )}
           </tbody>
@@ -395,41 +338,19 @@ const JointsPage = () => {
             <h2>Add New Joint</h2>
             <div className="input-group">
               <label>Joint Count</label>
-              <input
-                type="number"
-                value={jointCount}
-                onChange={(e) => setJointCount(e.target.value)}
-              />
+              <input type="number" value={jointCount} onChange={(e) => setJointCount(e.target.value)} />
             </div>
             <div className="input-group">
               <label>Grams Used</label>
-              <input
-                type="number"
-                step="0.1"
-                value={gramsUsed}
-                onChange={(e) => setGramsUsed(e.target.value)}
-              />
+              <input type="number" step="0.1" value={gramsUsed} onChange={(e) => setGramsUsed(e.target.value)} />
             </div>
             <div className="input-group">
               <label>Price per Joint (Ksh)</label>
-              <input
-                type="number"
-                value={pricePerJoint}
-                onChange={(e) => setPricePerJoint(e.target.value)}
-              />
+              <input type="number" value={pricePerJoint} onChange={(e) => setPricePerJoint(e.target.value)} />
             </div>
             <div className="modal-actions">
-              <button
-                className="btn-secondary"
-                onClick={() => setIsModalOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn-primary"
-                onClick={handleAddJoint}
-                disabled={buttonLoading.addJoint}
-              >
+              <button className="btn-secondary" onClick={() => setIsModalOpen(false)}>Cancel</button>
+              <button className="btn-primary" onClick={handleAddJoint} disabled={buttonLoading.addJoint}>
                 {buttonLoading.addJoint ? "⏳ Saving..." : "Save Joint"}
               </button>
             </div>

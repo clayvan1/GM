@@ -1,3 +1,5 @@
+import UserService from "./userService";
+
 const API_BASE = import.meta.env.VITE_API_BASE;
 
 export async function signup({ username, email, password }) {
@@ -6,7 +8,15 @@ export async function signup({ username, email, password }) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, email, password }),
   });
-  return res.json();
+  const data = await res.json();
+
+  if (res.ok) {
+    // Refresh cached users after successful signup
+    await UserService.getAllUsers(true);      // force refresh all users
+    await UserService.getEmployees(true);     // refresh employees cache
+  }
+
+  return data;
 }
 
 export async function login({ email, password }) {
@@ -27,5 +37,13 @@ export async function updateUserRole(userId, role, token) {
     },
     body: JSON.stringify({ role }),
   });
-  return res.json();
+  const data = await res.json();
+
+  if (res.ok) {
+    // Refresh users cache after role update
+    await UserService.getAllUsers(true);
+    await UserService.getEmployees(true);
+  }
+
+  return data;
 }

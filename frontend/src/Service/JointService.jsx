@@ -1,39 +1,54 @@
-// src/Service/JointService.js
+// src/Service/JointService.jsx
 import localforage from "localforage";
 
-const API_BASE = import.meta.env.VITE_API_BASE + "/api/joints"; 
+const API_BASE = import.meta.env.VITE_API_BASE + "/api/joints";
 
-// Cache setup
 const jointCache = localforage.createInstance({ name: "joints" });
 
-/** Fetch all joints */
-// src/Service/JointService.js
-// src/Service/JointService.js
+// ================== Fetch all joints ==================
 export const getJoints = async () => {
-  const cached = await jointCache.getItem("allJoints");
+  const cacheKey = "allJoints";
+  const cached = await jointCache.getItem(cacheKey);
+
   if (cached) {
-    // Return cached immediately
-    fetch(`${API_BASE}/`)
+    // Refresh cache in background
+    fetch(API_BASE)
       .then(res => res.json())
       .then(data => {
-        const joints = Array.isArray(data) ? data : [];
-        jointCache.setItem("allJoints", joints);
+        const joints = Array.isArray(data.joints) ? data.joints : [];
+        jointCache.setItem(cacheKey, joints);
       })
-      .catch(() => {}); // fail silently in background
+      .catch(() => {});
     return cached;
   }
 
-  // If cache empty, fetch normally
-  const res = await fetch(`${API_BASE}/`);
+  const res = await fetch(API_BASE);
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   const data = await res.json();
-  const joints = Array.isArray(data) ? data : [];
-  await jointCache.setItem("allJoints", joints);
+  const joints = Array.isArray(data.joints) ? data.joints : [];
+  await jointCache.setItem(cacheKey, joints);
   return joints;
 };
+
+// ================== Refresh full cache ==================
+const refreshFullCache = async () => {
+  try {
+    const res = await fetch(API_BASE);
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const data = await res.json();
+    const joints = Array.isArray(data.joints) ? data.joints : [];
+    await jointCache.setItem("allJoints", joints);
+    return joints;
+  } catch (err) {
+    console.error("❌ refreshFullCache error:", err.message);
+    return [];
+  }
+};
+
+// ================== Create joint ==================
 export const createJoint = async (joint) => {
   try {
-    const res = await fetch(`${API_BASE}/`, {
+    const res = await fetch(API_BASE, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(joint),
@@ -44,29 +59,21 @@ export const createJoint = async (joint) => {
       throw new Error(errData.error || `API failed: ${res.status}`);
     }
 
-    const data = await res.json();
-    const newJoint = data; // ✅ fix here
-
-    console.log("✅ Created joint:", newJoint);
-
-    let all = (await jointCache.getItem("allJoints")) || [];
-    if (!Array.isArray(all)) all = [];
-    await jointCache.setItem("allJoints", [...all, newJoint]);
-
-    return newJoint;
+    await refreshFullCache(); // Always refresh cache after creation
+    return await getJoints();
   } catch (err) {
     console.error("❌ createJoint error:", err.message);
-
+    // Offline fallback
     const offlineJoint = { id: Date.now(), ...joint, offline: true };
     let all = (await jointCache.getItem("allJoints")) || [];
     if (!Array.isArray(all)) all = [];
-    await jointCache.setItem("allJoints", [...all, offlineJoint]);
-
-    return offlineJoint;
+    all.push(offlineJoint);
+    await jointCache.setItem("allJoints", all);
+    return all;
   }
 };
 
-/** Update an existing joint */
+// ================== Update joint ==================
 export const updateJoint = async (id, updates) => {
   try {
     const res = await fetch(`${API_BASE}/${id}`, {
@@ -75,46 +82,46 @@ export const updateJoint = async (id, updates) => {
       body: JSON.stringify(updates),
     });
 
-    if (!res.ok) throw new Error(`API failed: ${res.status}`);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `API failed: ${res.status}`);
+    }
 
-    const updated = await res.json();
-
-    const all = (await jointCache.getItem("allJoints")) || [];
-    const newAll = all.map((j) => (j.id === id ? updated : j));
-    await jointCache.setItem("allJoints", newAll);
-
-    return updated;
+    await refreshFullCache(); // Always refresh cache after update
+    return await getJoints();
   } catch (err) {
     console.error("❌ updateJoint error:", err.message);
     throw err;
   }
 };
 
-/** Delete a joint */
+// ================== Delete joint ==================
 export const deleteJoint = async (id) => {
   try {
     const res = await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
-    if (!res.ok) throw new Error(`API failed: ${res.status}`);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `API failed: ${res.status}`);
+    }
 
-    const result = await res.json();
-
-    const all = (await jointCache.getItem("allJoints")) || [];
-    const newAll = all.filter((j) => j.id !== id);
-    await jointCache.setItem("allJoints", newAll);
-
-    return result;
+    await refreshFullCache(); // Always refresh cache after deletion
+    return await getJoints();
   } catch (err) {
     console.error("❌ deleteJoint error:", err.message);
-    throw err;
+    // Offline fallback
+    let all = (await jointCache.getItem("allJoints")) || [];
+    if (!Array.isArray(all)) all = [];
+    all = all.filter(j => Number(j.id) !== Number(id));
+    await jointCache.setItem("allJoints", all);
+    return all;
   }
 };
 
-/** Get joints for a specific employee */
+// ================== Get joints by employee ==================
 export const getJointsByEmployee = async (employeeId) => {
   try {
     const res = await fetch(`${API_BASE}/employee/${employeeId}`);
     if (!res.ok) throw new Error(`API error: ${res.status}`);
-
     const data = await res.json();
     return Array.isArray(data.joints) ? data.joints : [];
   } catch (err) {

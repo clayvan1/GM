@@ -28,7 +28,7 @@ const LandingPage = () => {
         className="navbar"
       >
         <div className="navbar-content">
-          <h2>GM</h2>
+          <h2>entrapreneur</h2>
           <nav>
               <Link to="/login">Login</Link>
           </nav>
@@ -37,8 +37,8 @@ const LandingPage = () => {
 
       {/* Centered Content */}
       <div className="landing-content">
-        <h1>Welcome to GM</h1>
-        <p>Your journey to hard work and growth starts here.</p>
+        <h1>Welcome to entrap</h1>
+        <p>Trillest</p>
         <Link to="/signup" className="get-started-btn">Get Started</Link>
         <CircularText
   text="RESPECT*THE*GAME*"
